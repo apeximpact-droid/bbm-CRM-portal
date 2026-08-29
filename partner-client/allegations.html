@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Allegation/Audit Request &mdash; BroadBase Media</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Open+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#4D4D4D;--navy-2:#6B6B6B;--navy-3:#333333;
+    --cyan:#E3B565;--cyan-2:#C9932E;
+    --ink:#12283c;--muted:#5a6b7b;
+    --line:#e3e8ef;--bg-a:#eef2f7;--bg-b:#ffffff;--card:#ffffff;
+    --red:#e0455a;--red-bg:#fbe5e9;
+    --green:#12a45a;--green-bg:#e2f6ec;
+    --radius:14px;
+    --font-heading:'Montserrat',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --font-body:'Open Sans',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --shadow-lg:0 30px 80px rgba(6,20,36,.45);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font-body);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+    min-height:100vh;padding:24px;display:flex;align-items:flex-start;justify-content:center;
+    background:radial-gradient(900px 500px at 82% 18%,rgba(227,181,101,.16),rgba(227,181,101,0) 60%),radial-gradient(700px 500px at 12% 90%,rgba(201,147,46,.14),rgba(201,147,46,0) 60%),linear-gradient(135deg,var(--navy),var(--navy-3) 55%,var(--navy));}
+  h1,h2,.brand{font-family:var(--font-heading);font-weight:700}
+  .hidden{display:none !important}
+  .card{position:relative;z-index:2;background:var(--card);width:100%;max-width:560px;border-radius:18px;padding:32px;box-shadow:var(--shadow-lg);margin:24px 0;border-top:4px solid #9B2924}
+  .logo{display:block;max-width:280px;width:100%;height:auto;margin:0 auto 14px;}
+  .card h1{font-size:19px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy)}
+  .tag{text-align:center;color:var(--muted);font-size:12.5px;margin-bottom:24px}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:5px}
+  .field .opt{font-weight:400;color:#93a1b0}
+  .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;background:#fbfcfe;transition:.15s;color:var(--ink);font-family:inherit}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--cyan-2);box-shadow:0 0 0 3px rgba(201,147,46,.16);background:#fff}
+  textarea{resize:vertical;min-height:110px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .section-h{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.03em;margin:22px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+  .section-h:first-of-type{margin-top:0;padding-top:0;border-top:none}
+  .req{color:var(--red)}
+  .field-desc{font-size:11.5px;color:var(--muted);margin:-2px 0 6px;line-height:1.4}
+  .charcount{text-align:right;font-size:11px;color:#93a1b0;margin-top:4px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:10px;font-weight:700;font-size:14px;transition:.15s;white-space:nowrap;border:none;cursor:pointer;font-family:inherit;width:100%}
+  .btn-primary{background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;box-shadow:0 6px 16px rgba(77,77,77,.25)}
+  .btn-primary:hover{filter:brightness(1.12)}
+  .btn-primary:disabled{opacity:.6;cursor:default}
+  .err{background:var(--red-bg);color:var(--red);border-radius:9px;padding:9px 11px;font-size:12.5px;margin-bottom:14px}
+  .confirm{text-align:center;padding:20px 0}
+  .confirm .check{width:56px;height:56px;border-radius:50%;background:var(--green-bg);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px}
+  .confirm h2{font-size:18px;color:var(--navy);margin-bottom:8px}
+  .confirm p{color:var(--muted);font-size:13px;max-width:400px;margin:0 auto}
+  .disclaimer{font-size:11.5px;color:#93a1b0;margin-top:16px;line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="card">
+    <img class="logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAABZCAYAAADII9YOAAAABHNCSVQICAgIfAhkiAAAIABJREFUeJztncFu20a3x/+HZG66s+8TWB+qAHY2Vp/A6lbQOPyeIDJQB+iq7hNYeYKoqwJRgchPUNYsvA39BJU3sYG4qPwEtXfpDclzFxq6jCPZEmdIkcz8gKC2Kg7HIsUz53/OnEMwGGbQ7XbblmW1mbkFYB3Azn3vZ+YbIhoz85iIxlEUjU9OTsbFzNZgMFSRnzc3G4/oY4uJWmC05cv3PmtSnAIACAExjz/yo/H3FxeTHKZZGUgIEax6EikmRDRh5nEURRNdBqHb7Q6IqKVjLA3c/o22bY89z5usekIA4LruehRFLgAXwDNNw14BCJh59PvvvweaxsxEp9Np2bY9yGHoa9/3Xd2D5jjfeST35aSoxdhwqxnkfY7FoQmIJxzTBBbGL969X/lidLjZbIPQz2Ho6/3zS+337KL8svW1y7BcgNsANjQPf0VgLyZrpOMavt580iPinoZ55Q4zjUgIwaueyDyk1xcA8Gzb9jzPu84yjly0LLrqK5orAAEAz/d9r+iTS8NxAOB5zqe6AjCwbXuU9TqqIBd1P+QxdhRF3+g2gN1ut01Eb3WOmYFT/Pvdm+gefLjVLO2zR3IKwAvZ8Vbh+Q23nowAzuV7yUTfFLlo+Xlzs+FYYQ+MAwBrBZ32CsDAeRyO9saTTM+c4dNmH4xDvdPKCcJLa9VzuA8iWsPUW3wTRdHfQohRp9Mpi6etiw1Mjemv3W73end3t++67nreJ3VdtyGE8Gzb/gP5G3Ng+ne+CsNwsru72y/gfJ9ARLl5JJZl9fIae8XsAHgVRdFfQoixEKJXxL1ZInYAvHIo/Gu41fSGm812safn/O5Zjnt5jZ3mTauxPtx6MnIo/EsaxqKMOZA8c/5xJsOnzX6B510ZpTboM3hu2/YfQohRHR8sRLTGzId5G73d3d1+FEV/QZ+0vjDJ3yiEmHS73XYR55SLQN3S3i15LhZKxDaAN8m9Wcfv3wM8A+HtcKsZ/Ly52cj7ZL9sfe0iR+MXM7XzGjthuNU8CP9xJnmpDEuwBsbh683m+PXTJ3VzCD+hagY94XkYhhMhRC0fpCmjN9apSHQ6nZYQYszMZZCQNojobbfbzT1OXIAHvVFD5Wgm6UWnEOJg1fNZATsOhePXm096eZ5kGmPODyJs57UwmXrlTQ/AKxTrkd8LEbaJ+Y+8r90qqapBT+T4X4UQvVXPJUe2LcsKdBgLIUTPsqwAU0+rNBDRD0KIcZ4eXxEedI1l95nI798rIUTgum5j1fMpmDUifjONcedFfnJ7gkOh9nO8aTXWP35wAqxA/VuU/K/d6qisQU/xps5GnYjWVI26/HzeyIdwGdmOoigXw5C33J7whcjus9gJw3Bc5+/gfPh5HrHZvOX2BGb0dI6XGHOicjkNs8nn2q2aOhh0MPOgzpKnilFPjLn+WWlnOwzDsW6jXqDn/MXI7neRC8U3q0h2XDmMQ93JcnnL7Qk6ZfdqGXMJ47Bu8nstDDoRrRW8Z7dw5N84WuaYChlzANO/MYoiT6f8XqTn7DjOl+qlAwBk3sdo1fMoHMJI74Dc1jvefHTJ7tE/dr9SxlxCxIMikhyLohYGXbJTVNb0CtleNBFJeouVMeYptqMo0rIfvyi5PYE5/7hnBXj+BXrqG7o8PZmFXeA9qy67DzebbUY+NR4KYM2hcLTqSeiiTgYdRFT7rFtmfnDLkOu667ZtF16kRiM7OoyCgtx+lvG47S8wQewzpKfeW/U8ioW1PHuy7g9nznbPapHd86lmVyQ7xdcYyIdaGXSUOLNSF1KWvtcTjKJohAJX+XnAzIeqiouC3N7Pes6Hrs2XQt3zWu6iKx7NyHbPWsT9rOdUkd2lIdRehVMuUE4J/BMIL0F4CdARptX7bnSfD4RaOIOO6gBE9DLrsczcYua2zuzrbrfbXnXd8AI4AGbH7aQRzGNhc8rMY8uyruM4DgCAiNaJqMXMDQBtaF5EENEAQCajoCK3+77vCSFOke1B1QNQ63yORUjlfORn1AmZnz1gauiuJW4jamPO93IRXj990gJzlvncfHf+p/d6s3mWJY4tZfds9yxRD9BWwfc3ZvIeffXRe6hU6+unT1oEdjWWkn328+Zmo+rNXZQN+vHxcV91DCnP9aHhy0VEDdUx7sLM32ZdJLiu24iiqA29TU+2Xdddn1UTnYhGms4BLFZ//Vbaz6Eu/LYQouf7/mjZAxXk9lP5Xw/ZDPq267qNEjTdubrvXojjeD3VsCivPgfbu7u7fR3PiFnsv7tUHnca/8VAR0IXWdxQOd7iuMegLIcG0/PDAy//dyTqQjZjpp43wowzWNRbpra8fO/4TasxCP/POdBRb10qFboX46eg6fXJnRiBskHXge/7I9d1vSiKAigWPsnDoKsgH+wjACNp8EbQUNwlDMMW8OmNIhdGWjwOInppWdZgmUYqskFJr9PpDHT9ncw8cF136cY8CnK7BwBRFAW2bWcaQMruq/bSJ8sYUnlvtjFVf7R5rcx86LruqAQLnJnsX1wGAFqystlKQ3ZZ5XYkz4EYASibYctizKSioOodnz76KnSzNk+Rx/Vfbz6ZELFqEnAbur+3hEDHwnNRShND9zzv2rbtWscfT05OxvKhmTXp6hbLstozXu6rjivZOz4+7mftipb6O49UJ7JIzsBdVOR2uajEycnJmJmzxup6GY9bGScnJ2Pf9we+7zcA7GGqzmghiqK+rrHywnkc9qAam/23n/fSqGS3h+x4wO3iJOvf0F76iFg5nHLjPM5uzNO8uHg/AvCj4jBt1XmsmtIYdODWm/1t1fPIE10LlziOP8l0l7FzHZ7VXhaJ+y6e5137vt+DnuvZX+bNCnL7VboNKhFl3SlQ6Wx33/dHtm23oGFBJnle9s9jbzy5JvBIaRAFaVWh+9nVHak86xyevWk1lqr/oBpiIHDmtqaz2D+/HODfkFkW1pb9DMpGqQw6ABCRUo9eZi681/ay6Fi4pOKfye/KWZpE9FKHMU9j23YP6t7exjIZ7wpye/DA7wtT9Wz31IJMi1EPw7AKWcTBqk6cVW4n8N1FZ5B1Dh8/PFpqDsSsZPyYMy+Y7xtzpHJ8+MGp9M6M0hl0ZlY16ErHF4XqwiWN3JeuGv+7yiN5Scr2OhYbvUXep1hMJkj/Ytt2MPttC9FTOLY0aDTqPQ1j5AozKTkDHNMky3GKxWSC9C+J/J4FouUS3BikZPyI1BYEs4ig9J2tPKUz6Hc9z2VxHKcSBj3Z+qUDTd5gX8MYM/F934OaFLZwFTaV2u13i/FIJeWLLzIjdy4oqSxEtFbXdse3WMj07FGQ22E/nuZ8JEj5Peu1Wlp2VyGPmvVV33amSimy3NPIPc1ZOc2ayFVx2orHX+mW2mcwgsL2KCJa63Q6rXSMe877sj4kzmbdO8wcEFGmbH25XXGUcT6lwfO8ayFEH+qlhF2ktjmWDgtthS3VV8tsu0qjkN1+OjsGTQHAmbaOStl9tMh7CTxmkMKWR34+3GyOZDKfNvbPLzPt/asDpfLQXdddV6yHPdI1l7yZk6W+MHdCC6pj5f6Q9X1/pJA1DuDh5icqcvu8BDgiCrKMJ6mNRyoXfKq5EG31meSISl3zjA1aFOX22fcs4kJkdya1EMX0hHg7fNrsVz0ZrSyUyqBHUTRQqBpXhJepDWZWCi1YlnUNTAvXQD27vRCvSSFrHMDDn5mK3D4vBCLDBVl5prNzXAlQ3aO7UdYwhOyNnfV7dOP8T5jps1GR23nOYvOuDL8kC8vupCtfiXEY/uP8PdxqesOt5oFc5BgyUArJ3XXd9SiKBlCrMFaFLFoAt9XjlJLYEgMURZHyzV9gqdwAatf43r81q9zOzDcPfAZZy8Am+Q2jLMeWDdu2vSiKXqmMIe/XiZ4Z6WH4tNlXqjRGGGTdfqUgt9/Mk/j3xpPrrGVggcVl94/8aOxQmOUU83gG4BkxY7jVBIBTgCYgnhDzOCZrkjWs8aWwUoMutyK5YRj2FOu5Hyl6UoUhFy/Kc00MkKylrjKUUrLaMkRRNM5afU0y14NSlNuDB97iIXv8vzYG3fO8iRDiDAoVAGXS68q/q6+fPmkRcxvAATi7wsWMsxfn2SqBKdRuB3C/2pW1DCxwK7uPHnrf9xcXk+FW8wr5NYLaAXgHDDAIKUN/BWBC4DETXSNGEMKZlDIhjqmRdye3dA6CskEXQmirzJ+RM5mFW3qkZ+5BvSTq7R52xSTCQrf5nZycjIUQSmPMa77jOI6rsLC59+GoUgYWUnavUbLmGAr3r2qoKc1wq5n92aO2CE6GOHv0VdjOerxC7XYwP7DfXKEMLJbZAksY6aijviQbADYYtAMGQDh0EGK41bwBMAYhIOax/TgKdBauyQY/B2nrbTGP25uoVDH0DPxm23a77A/LTqfT6na7gzAMlR6GKUapnxsqAyWx+ALRVlI0jUoy5UP7zRXLwFa+yEwaomx7rVPUIqcgMeYqBkNBbsejrz7euwhVLAOLX7a+XmhuMndAfzvTbKwB2AHjkEG/hv84f7/ebI6HW80DHa1tq0ApYujLwsw3RNT3fV81SWchiGgghMjyxV2HHgOe5kpneGEFhXgmUJDopGQbpF+TykfWz/lqkcYhMqEv60q7NrJ7HMcBEal4ZA1dc1kZhJdZZfYEFbmdGWcLLiQCZCw4JfeIP/ic2RtProdbzT4ApdyKvJB5BK8cCl8Nt5qnzDSSdd9rSaUMOjPfWJY1sG17qS5gGtBtlDPDzL07LzUUxyu1unEXIvrMw1PxgJfYshcgu0Gvm+yuQl7x1ry5AcgL2e5/f64eq1WR2y3iYMG3BshcQXJxxWv//HIw3Gq6yK8Nry52iHhnuNXsM1O/joa9Kgb9FMDg999/X3kyzYo5mhE/ruoDUie9rAcuus/ctu0giqKsp6lVtvuXBDPOLOK+7nisity+aA30kB3PoTCr57z2y9bX7nfnfy50Ludx6H784AQ6+soXwAYRvxluNXshO71SJtNlpCox9B0AvwohAiHEQc329i5KZZL/7kOxUMtnyH3NmR8ii4YvFMvAAjUqMvMlQYRtBv368YMT6IrFKhaTuVm0sppiGdilSrPujSfXMkGwsF0zGthxKBzXad97VQx6wg6AV1EU/S2EGJW1SEUOnFUh+W8RVLPy76KYcLZUxzvmhaXOWce2sx5rWD2pWOxfw62mp2IEVIrJYOluaioL6OUSTffGk+v988s2CC+zn7Nw1og5qItRr5pBT/M8iqK/dnd3+6ueSM4c1cWYSxqax+spHBss82YVdeGLaE7y5fCMmP/4ZevrQZaSpSpyO5a9ZxXKwELK7ssetP/ush+y8x8otogukNoY9SobdAAAMx8KIYIayvBXAP7r+37vAWOuIgNXGlW5PYqWK5GpYXeBMeg1gkE/fPzgLGUIFOX2pdujKpaBzdwR7fuLi8n++aU7Nex0hPJsbZvHGmIerXoSqlTeoEt2oiiqi1E/A7Dn+35jQQOi5LkTUUPl+KJh5knys6LcfvVQ57Y5ZI4RKjYeKgWzdhksSa0WoETYXsa7U5Tbr5ZN4JKJfApxbbV7dmrY3/f2zy/XCfxfadxzqUWhChG2h1vNSucp1cWgA8B2RY36GabS1I9RFH3j+36ryCYzRRt01UphaYOOAuX2FAqdrKovu8s6ACrUJXSUZo2YvUXkdxW5nZCxKyJlvteBjLL7LL47/9OTxr0RsvMfAv9XxttPUR4PvtIGXXnbGjN/qzqGNCptZnYVa7pvh2HYR3UuyhWAMTOPsjZIIaKAmTPv/9RZivMhZB17leuLOI5vu8wpFJMBgLYQIshwnOqCcaGCHWVFw/0y0TEPAABD+dnDoIZFcUsaWpUtoBvhP46He1rEqtVuny4GhlvNpT9/jrFOCh3CFy0yswxSaZjcHXe42WwT8ToTtcDUALiBaVMmpefGEmwss12vbCgbdI2dukau667HcXzAzJkrURHRD91u1yuwg5gKGwCeE9FzIcRpFEUHy8rAGgrDNBSPX5gwDFuk8mTBtAwroKWc6gZWsIe/6rI7M7dVrqGG0rG3LLp9a0EOpNzaR3bjsfN680lvXsESlWIykkz3rOJXDkBxOzRS1/Qzg/r66ZMWxbwOC20wNZi5lce+d60LGMLL/XdqVQWXoVSSu+d518fHx30AeyrjEFFfy4SKZce27T+EEL1lDtJQunW7qDCFZVltxSHS8dee4lgrocqye6fTaSkqaHP7zpeB/fPLARO1VcYg4v68/6eY3b5KNsqQAf7i3fvx/sVlsP/usr9//r734uKytX9+SWB8S+CfoE22r+4W01IZ9AQZQz5SGGJH8x71M0zjPPf908WbZYy6DiWiqOYhGrzTMaCe3V4CKvlg11HYqOzK2Yt378eK+6g3ZsWcVbPbV41iMl+u7F9cBt+d/3mwf365rmkPfGWvU5lLv6o0w0iMlJbmLcx8sMiDSAjRY+aBqheDqVG/XmKblFKPahTQPERDzBuQiWxV715WRdnddd31MAxdxZBJJTLcw9gZORRmDvvNkmxJMVt81Uh1ofS5SfvvLvvDreY1FJvFDDebbc0hnUIorUH3fd9T7J2tzaAviu/7o06nM7YsK1A16sw8cl23tUgnMGYOiEjFWD5zXbexyLmyEsfqK/xUm1PlsVZJIrvr7JqXN3EcH2hYqI50zCVvvr+4mMje2hn/3s8lW47hqseyV8rG66dPWi/evR8DwPBps6/QB/10//yyrW1md5DNYg5QYU87K6WU3HVQZPZ2mpOTkzER9VTHIaK1KIpGi7w3juOF3vfAGD3VMeaRJDsqDnPmed6kBnI7gGqVgu10Oi2VRNUE27Yrs4CBDO9k5BND8vPmZqMiTUvuRZfszqy8U2QRJgWco3TU1qBr8CYyIz0vHXH1nUUSqGTmt1KxBmY+zKs2fhiGfV3eXdXl9gSiaiRIua67rskQn+WpAOVAQ+Xg4WaznfzsUFiJa/0QupL6iLCdpWSu4WFKa9A7nc7KsypVYJ6f7bokC4UNlujrPZcoirR7UN1ut01EP6iOkzIqPdWxSsJG2e9xWTcggB7pstDwlwrS2GiTa5nrc88m2e4cq20//PjhUa6LnIJUgNJRWoPuOE6lV7UyiU6Hl76xiJfuOI6OB+a2EGKkYRwAt4syHYuE3+oktydYltVb9Rzm0e1222EYTqDn874qsvqhKjqNTV3k9oREdid8UrFxaYg4U2ObRZgWp1H7zEM4E03TKZRSGvROp9PSEHNdORq99Ac/Cylnqmz1S3guhPBU96Z3u922juRAAGDmAVAfuT2hjLJ7t9ttCyECInqrMWxVKe/8vr3ki8IWXQP1kdsTEtldQwb42scPTqDbqL9pNdZZw/22bM38slA6g97pdFqaDMHKGwBIL13HVp2dbrfbfuhNtm33NZwLAJ5FUTRe5Jx3cV13fXd3t6/RIJymtgz2NIxXJlYuu3c6nZYQwu12uwMhxISI3gLIXEp4Ble+71fCoP+8udn4+MEJoEFuT7LBayS3J/wru7Pas40I2x8/OMHPm5sNHRNLrp8GRURnXZFCKcW2NRmra2O61Szz3vM7qFZQ08UAwBvVQWTmfHDfezzPmwghjqDnM9wgordCiDMAI9u2vfuSmmSsvCf3KmtLSExUDk372EuHlN3zUKN2hBC86JtVS/LOg5l7uQysiTetxnr0j92e7h0PtTx7EkM3ldvD2t2zNN2hMSbCCIr7vYmw7SAcD582B2HsjLJ4xm9ajfXw/5wDcHgAHTXf1ZrZfAqjN9z6N0Eyb5QNesYGFwnrmHZJU53GLEqxRcb3/ZEQog/1Vf9z13X7D2UK27Z9oNmobgN4FUXRK1kX4O7qdR2pOKtOw8DMPyXeuQa5/dT3/bbypO4gcw4yGwIpu1c+vDSL9PXLg+FWU3XsnfCf5MeF1z4PYhEHgBa5/bf980vtkv1wq+kBeJb1eKk6DEJ2PIdCJYMuWQPj0KHwcLjVPAUhQIwghDOZZeB/3txsOAgb05ruaIf/aFWUEMbOSONwhfaM0OGha/0wdcDMN47jlMKgS/rQ4KWHYXiABx7+nuddCyEOdJxvDkVd7yvHcfqp33uK4+V1PwRQU0Q2Op1OK2Nv9jJzduf65UHpnj0A8JEfDYCp4VNc3wY65jNn3MwGnQjbP29uNqYFeJ4cAaxLVQWAHTB2QDh0EGK41ZzxlnD6H31rsDSnVY2fAyWMoeuAiDzP81S7kGnDtm2PmXU0DugtkqwmM4p/03C+lcHMveQa6shul9uvtJOqXpeZMme7Z4GZb2zbdsv0HSyQ0+8vLiY6sttDzscp0TFuoj6ErC1vpxww+queggq1M+jyYVIqCdPzvGvLspQTg2T1uN4i77Vtu4eK1M6ewY9pqVaD3H6VlwcsQyCKyUHly3bPCjPfxHHcrlgRGW2E7PQALXL7VV6eohxXsRDVVDH7/uJiIjud1YHTKtZvT1M7g05EvTJ6BjoMumShxYrnede2bbc1KQNFcjQjK7qnOGagePy9MLPq+Bt5VekrksSY1zB8sCg/JkZYNbudoF4oKs/xE9kdAOzHUV81470E3CSLsSpTK4NORC/L2vBCLjJ07BPfWLS9qud513EcV8moH/m+30u/oKmYTL4PR6JAdYwa7LG/+rKNOR3tn18OAG3FZAL1OeU7fqJC7I0n17CoB239yFcAw61y7DyhNgadmX86Pj7ur3oe96Fxn/jCIYWTk5NxHMdtlF9+/8yYA3oMnY44931oWkT2NIyxKn6zbbuOiX0LQkf75+97yW86isl8d/5nrotQ+7F6TklahXjx7v2YidqooFFnpr2qS+0JlTfo0vvc+/3330sVN5+FjCvqSFbbXqboy8nJydi27TbKWzBhb5Yxl8x7fVHOCgrBqH6221WT3eV370ff97/UBDiA8DJtzAEtxWRy/57ujSfXqudJy+7AJ0Z95UW9FuSGmfZeXLwfrXoiuqi6QT91HKdVpTrRSRlTVYhoqQWM53nXvu+3ieiljvNr4iyKom/mXT+Z0a8kXRJRUSEYHc1xqiS7HzmO06hKFTjdMOOMib7Zf3fZT7+uSW4v5p7VUEDlrhrx4t37sfM4bKHku2zk9WvXyZgD1TXop8z8re/7lcum1di05VkWj+74+LgfRdE3muaQCWa+kfkO98q0OgxcGIaFPBw1bYvraRgjb45s2/6P7/ulTD4tgKupV3fZSsq7ptEht7OGnIyFzgP1xe4sNWJvPLneP790mWkP5ZPgb0B4Oe/6VZ3KGHQp7x1Jj66dZwWqAtDi1URR1M9y3MnJydj3/TYzf4viY+tHjuO0Fsx3UHo4MvNNUXHdk5OTsYbkw7LK7mcAfrRt+3+lIZ+sekIFcwPQERjf7p9fNu7z6jTI7VdFGRp5HqV79r7e5i8u3o+cx2EDhJdYvQx/A8JL53HYuKuq1IlS1HKfwxWAMRGNwzD06pRw4/u+J4S4gp5ysAdZPSW5KGolddihr47+Xa6IaGRZ1mhRYyDr+2euZgXoyT5f8nweFD9DqUqsWsY+ZeYxEY1lDf8vzRO/ATBOSpAumjClp3Z7sfcsFKvGAbftZkez/p+M1fcB9F9vPukRsat6viU5ZabRo68+enIutcYpS0yVmcfMfA3cGhqdjFQe7rZtT/RNZQoz9yzLamsYah2A0o0qP+/Add0DaVDa8p/KguOMmYM4jkcZF2PrqvdmHMeByvHLwswjy7ImimNM2246ziSO40K+m8nn5DjOpFDve+q5rRyOaZL091bOdlb9m2LlmgbLwRjAUmtkZSFe6PkjlY1R0hAHQDtmUu5dnoYZZ0Q0ZkagxYjHCKqjYwP5tFgy1ALXdRthGDaShQcztzBdQHwCM48ty7pm5gkzTyoeDjEYDAXz+umTFsW8DgttACDmdQbNbS1M4DHTtOc8YgRs0XUdY+IGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYDAYDAaDwWAwGAwGg8FgMBgMBoPBYFg5JIQI0i/Ytu0+1F1JdsL6pJeu7/tt/dMz5EW32x0Qza+VfA8j3/dHuudjyAchRA/39FlP6vDXraPhl8id77T5ntaAGbb22vf9uW2lHQA76RfiOD7AtN3dXOR7du57j6HcyC/+0tew6JakBjWIqMHMc68zEe0wM2zbPhRCXDFzzzTXqSbp77T5ntaDWbZWCNGbt1j7rDFcHMcHruvObFgPTFcM8iQGg6FebBDRW+nVGwyGFeK6boOZD2f8r/48G+3cfYGI1u7z0uM4PiCiNaWZGsrGqQmZfBkw87fJz0S0zsxtImoDn/SkftPtdk0bXINhhURR1E9+ZuablN3dmGejPzPowK2XPrgbS3dddz0MwwMi00bdYKgiM4y0BwBCiBGA58mLRNQHpr2pDQZDsXQ6nRZS30fLsgbM3Ehem2ejZxr0eV668c5ry3q3220/9CbjsdUX3/d7Qoh1AM/kSzuu664/lCBrMBj0Y9v2IPXr1fHxcd913UYYhi4Rrc2z0Xdj6KfJD3dj6TNi56cw1IVtInr70L9VT9KQO6P0L2EYZtkFYTAYFJDOVToRrg8AnudNLMu6NfTMfOi6biN97F2DPmDmG+ATLx0AEEWRm3jn8j0DGAyG2mDbdrDqORgMXzoy3JVwls5ol9L7TfJ7Os4O3JHcmflaHnAIfKbTpw8cMfO1iaXXhisiGq16EobVEoZhK/2djuPYyO0GQ4HIHSZp73yyu7vbT36J4xhENMG/SazPO53OIKkh8VkM3bKsgUx8u9XphRATABvJexzHGYRh2ND9xxhWxuT4+Li/6kkYVgsR3SpyzHxjCs0YDIXTv/P7M2Z+NuuNCTLe3gZm7EP3PO86rdPPCLwfeZ43yTZXg8FQNlzXbQghPPybEIf0M8BgMOSPEOIAKcd5CXaSpOaZWe53vXTAPr1tAAAArklEQVQAt5nttm33M5zQUG4aaVnnPuI4Dky2e3W5W+oZwHoURdt3XjszBt1gKA65JbyfCnn9xsz3fgeJaAApvSfbTGcadM/zrnd3dwczqtQY77yebMypSPQZlmUBQJDrbAx58lC539NF+jkYDAZ93N0Sbtv2wUO2ttvtHqR2H+0IIXqfSe4JcoV+lX7NeOcGQ205BbDn+37bGHODoTjubgln5p8WcZylUprePt7/fznrNKMlh0Q9AAAAAElFTkSuQmCC" alt="BroadBase Media" onerror="this.style.display='none'" />
+    <h1>Submit A New Allegation/Audit Request</h1>
+    <div class="tag" style="text-align:left;line-height:1.6;">Welcome to the BroadBase Media Allegation/Audit Request Form. Once submitted, your request will be automatically recorded and tracked within our compliance management system. Our team is committed to reviewing and resolving all allegation requests in a timely manner. Standard processing time is within 3 business days of receipt. Please note that during our peak season &mdash; June 1st through December 7th &mdash; increased volume may extend processing time to 5-7 business days. We appreciate your patience and understanding during this period. For compliance-related questions or concerns outside of this form, please contact our compliance team directly at <a href="mailto:compliance@REPLACE_WITH_BROADBASE_DOMAIN.com" style="color:var(--cyan-2);">compliance@REPLACE_WITH_BROADBASE_DOMAIN.com</a>.</div>
+
+    <div id="err" class="err hidden"></div>
+
+    <form id="alleg-form">
+      <div class="field"><label>Receival Date <span class="req">*</span></label><input id="f-receival-date" type="date" required /></div>
+      <div class="field"><label>Due Date <span class="req">*</span></label><input id="f-due-date" type="date" required /></div>
+      <div class="field">
+        <label>Email Thread Title <span class="opt">(optional)</span></label>
+        <div class="field-desc">If the allegation/audit was also sent via email please provide the email thread title to ensure alignment and tracking of your request</div>
+        <input id="f-email-thread-title" type="text" />
+      </div>
+      <div class="field">
+        <label>Allegation Form Link <span class="opt">(optional)</span></label>
+        <div class="field-desc">If your organization utilizes a form to satisfy your allegation/audit requests please paste the corresponding form link for the requested allegation below.</div>
+        <textarea id="f-allegation-form-link" maxlength="2000"></textarea>
+        <div class="charcount"><span id="f-allegation-form-link-count">0</span>/2000</div>
+      </div>
+      <div class="field"><label>Organization Name <span class="req">*</span></label><input id="f-org-name" type="text" required /></div>
+      <div class="field"><label>Submitter Name <span class="req">*</span></label><input id="f-submitter-name" type="text" required /></div>
+      <div class="field"><label>Submitter Email <span class="req">*</span></label><input id="f-submitter-email" type="email" required /></div>
+      <div class="field"><label>Lead Date <span class="req">*</span></label><input id="f-lead-date" type="date" required /></div>
+      <div class="field">
+        <label>Corresponding Lead Phone Number <span class="req">*</span></label>
+        <div style="display:flex;gap:8px;">
+          <select id="f-lead-phone-cc" style="width:92px;flex:none;">
+            <option value="+1">+1</option>
+            <option value="+52">+52</option>
+            <option value="+44">+44</option>
+            <option value="+91">+91</option>
+            <option value="+63">+63</option>
+            <option value="+61">+61</option>
+          </select>
+          <input id="f-lead-phone-number" type="tel" style="flex:1;" required />
+        </div>
+      </div>
+      <div class="field">
+        <label>Lead Name <span class="req">*</span></label>
+        <div class="field-desc">(If unknown enter NA)</div>
+        <input id="f-lead-name" type="text" required />
+      </div>
+      <div class="field">
+        <label>Call Duration <span class="req">*</span></label>
+        <div class="field-desc">(If unknown enter NA)</div>
+        <input id="f-call-duration" type="text" required />
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submit-btn">Submit Request</button>
+      <div class="disclaimer">Requests submitted here are reviewed only by BroadBase Media's compliance team. Your submission cannot be viewed or edited after you send it.</div>
+    </form>
+
+    <div id="confirm" class="confirm hidden">
+      <div class="check">&#10003;</div>
+      <h2>Request received</h2>
+      <p>Thank you &mdash; your allegation/audit request has been submitted to BroadBase Media's compliance team for review. No further action is needed on your part.</p>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function(){
+  var SUPABASE_URL = 'REPLACE_WITH_YOUR_SUPABASE_PROJECT_URL'; // Settings > API in your Supabase project
+  var SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY'; // Settings > API, the "anon" "public" key (safe for client-side use, RLS-protected)
+  var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  var form = document.getElementById('alleg-form');
+  var errEl = document.getElementById('err');
+  var confirmEl = document.getElementById('confirm');
+  var submitBtn = document.getElementById('submit-btn');
+  var linkInput = document.getElementById('f-allegation-form-link');
+  var linkCount = document.getElementById('f-allegation-form-link-count');
+
+  function showErr(msg){ errEl.textContent = msg; errEl.classList.remove('hidden'); }
+  function clearErr(){ errEl.classList.add('hidden'); errEl.textContent = ''; }
+
+  // Receival Date defaults to today, matching the source form.
+  document.getElementById('f-receival-date').value = new Date().toISOString().slice(0, 10);
+
+  linkInput.addEventListener('input', function(){ linkCount.textContent = linkInput.value.length; });
+
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    clearErr();
+    var receivalDate = document.getElementById('f-receival-date').value;
+    var dueDate = document.getElementById('f-due-date').value;
+    var emailThreadTitle = document.getElementById('f-email-thread-title').value.trim();
+    var allegationFormLink = linkInput.value.trim();
+    var orgName = document.getElementById('f-org-name').value.trim();
+    var submitterName = document.getElementById('f-submitter-name').value.trim();
+    var submitterEmail = document.getElementById('f-submitter-email').value.trim();
+    var leadDate = document.getElementById('f-lead-date').value;
+    var leadPhoneCc = document.getElementById('f-lead-phone-cc').value;
+    var leadPhoneNumber = document.getElementById('f-lead-phone-number').value.trim();
+    var leadName = document.getElementById('f-lead-name').value.trim();
+    var callDuration = document.getElementById('f-call-duration').value.trim();
+
+    if(!receivalDate || !dueDate || !orgName || !submitterName || !submitterEmail || !leadDate || !leadPhoneNumber || !leadName || !callDuration){
+      showErr('Please fill in every required field.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    // Deliberately no .select() here (no RETURNING) -- a submitter has no
+    // SELECT policy on this table (by design, so a submitted request can
+    // never be read back), and requesting the row back after insert would
+    // trigger that same SELECT-policy check and fail.
+    var insertResult = await sb.from('allegations').insert({
+      receival_date: receivalDate, due_date: dueDate, email_thread_title: emailThreadTitle || null,
+      allegation_form_link: allegationFormLink || null, org_name: orgName, submitter_name: submitterName,
+      submitter_email: submitterEmail, lead_date: leadDate,
+      lead_phone_country_code: leadPhoneCc, lead_phone_number: leadPhoneNumber,
+      lead_name: leadName, call_duration: callDuration
+    });
+
+    if(insertResult.error){
+      showErr('Could not submit your request: ' + insertResult.error.message);
+      submitBtn.disabled = false; submitBtn.textContent = 'Submit Request';
+      return;
+    }
+
+    form.classList.add('hidden');
+    confirmEl.classList.remove('hidden');
+  });
+})();
+</script>
+</body>
+</html>
