@@ -1,7 +1,7 @@
 /**
  * BroadBase CRM — backend Worker (Cloudflare)
  * ------------------------------------------------------------------
- * Two jobs:
+ * Three jobs:
  *  1. Compliance Workflow board (GET/POST /monday/*) — reads and writes the
  *     BBM Compliance board directly via Monday's GraphQL API, replacing the
  *     Monday "Vibe" app's generated BoardSDK with hand-written GraphQL. The
@@ -16,6 +16,14 @@
  *     separate, standalone deploy and does NOT go through this Worker at all
  *     -- it talks to Supabase directly with the public anon key, protected
  *     by RLS.
+ *  3. 1:1 Comparison (POST /compare-summary, POST /fetch-url) — /compare-summary
+ *     writes a narrative compliance readout of an already-computed diff
+ *     (grouped by document section, compliance-relevant vs. cosmetic). It
+ *     does NOT do the diffing itself; the client sends the already-extracted
+ *     content changes so the model's job is judgment/narration, not
+ *     re-deriving what changed. /fetch-url proxies a live web page server-side
+ *     (the browser can't fetch a third-party page itself due to CORS) and
+ *     strips it to plain text for the "URL vs document" comparison mode.
  *
  * Required Worker settings (set in the Cloudflare dashboard):
  *   Secret     STORAGE_SHARED_KEY       = a random string (also set as
@@ -58,8 +66,9 @@
  *                                         Video Submission Builder's
  *                                         on-screen-text OCR step
  *                                         (handleVideoOcrScreenshot calls
- *                                         Claude's vision API directly).
- *                                         Nothing else in this file uses it.
+ *                                         Claude's vision API directly) and
+ *                                         the 1:1 Comparison AI summary
+ *                                         (handleCompareSummary, job 3 above).
  *   Variable   MODEL (optional)         = claude-sonnet-5   (default if unset)
  *   KV binding COMPLIANCE_KV            = a Workers KV namespace (create one
  *                                         in Storage & Databases > KV, then
@@ -79,7 +88,7 @@
  *                                         Submission Builder's raw video
  *                                         files and scene screenshots.
  *
- * A third job, Video Submission Builder (GET/POST /partner-admin/video*),
+ * A fourth job, Video Submission Builder (GET/POST /partner-admin/video*),
  * lives in the same Partner Portal admin section as job 2 but is its OWN
  * standalone tool -- it is never nested inside a material record. Admin
  * starts a new video submission, uploads a video, marks scenes by scrubbing
@@ -450,6 +459,12 @@ export default {
     }
     if (url.pathname === "/partner-admin/materials/admin-files/download-url") {
       return handlePartnerAdminFileDownloadUrl(request, env, cors, url);
+    }
+    if (url.pathname === "/compare-summary") {
+      return handleCompareSummary(request, env, cors);
+    }
+    if (url.pathname === "/fetch-url") {
+      return handleFetchUrl(request, env, cors);
     }
 
     return json({ ok: false, error: "Not found." }, 404, cors);
@@ -1729,7 +1744,7 @@ async function handleApexOperationalLoginsList(request, env, cors) {
   if (authErr) return authErr;
   let rows;
   try {
-    rows = await supabaseRest(env, "apex_operational_logins?select=id,label,portal_url,username,password,logo_path,created_at&order=label.asc");
+    rows = await supabaseRest(env, "apex_operational_logins?select=id,label,portal_url,username,password,requires_2fa,logo_path,created_at&order=label.asc");
   } catch (e) {
     return json({ ok: false, error: "Could not load Internal Operational Logins.", detail: String(e.message || e) }, 502, cors);
   }
@@ -1740,7 +1755,7 @@ async function handleApexOperationalLoginsList(request, env, cors) {
     }
     return {
       id: r.id, label: r.label, portalUrl: r.portal_url, username: r.username, password: r.password,
-      hasLogo: !!r.logo_path, logoUrl: logoUrl, createdAt: r.created_at
+      requires2fa: !!r.requires_2fa, hasLogo: !!r.logo_path, logoUrl: logoUrl, createdAt: r.created_at
     };
   }));
   return json({ ok: true, logins: results }, 200, cors);
@@ -1761,7 +1776,7 @@ async function handleApexOperationalLoginCreate(request, env, cors) {
   try {
     created = await supabaseRest(env, "apex_operational_logins", {
       method: "POST",
-      body: { label: label, portal_url: (body.portalUrl || "").trim() || null, username: (body.username || "").trim() || null, password: body.password || null }
+      body: { label: label, portal_url: (body.portalUrl || "").trim() || null, username: (body.username || "").trim() || null, password: body.password || null, requires_2fa: !!body.requires2fa }
     });
   } catch (e) {
     return json({ ok: false, error: "Could not create the login.", detail: String(e.message || e) }, 502, cors);
@@ -1785,6 +1800,7 @@ async function handleApexOperationalLoginUpdate(request, env, cors) {
   if (Object.prototype.hasOwnProperty.call(body, "portalUrl")) patch.portal_url = (body.portalUrl || "").trim() || null;
   if (Object.prototype.hasOwnProperty.call(body, "username")) patch.username = (body.username || "").trim() || null;
   if (Object.prototype.hasOwnProperty.call(body, "password")) patch.password = body.password || null;
+  if (Object.prototype.hasOwnProperty.call(body, "requires2fa")) patch.requires_2fa = !!body.requires2fa;
 
   let updated;
   try {
@@ -2462,7 +2478,7 @@ async function handlePartnerUserDelete(request, env, cors) {
 // every partner-side RLS policy resolves access through current_org_id(),
 // never a specific user id.
 const MATERIAL_FIELDS = [
-  "smid", "status", "plan_year", "classification", "is_annual_resubmission",
+  "smid", "status", "plan_year", "batch_id", "classification", "is_annual_resubmission",
   "medium", "benefit_type", "distribution_area", "time_period",
   "start_date", "end_date", "hpms_filing_date", "media_type"
 ];
@@ -3809,4 +3825,156 @@ async function handleVideoTranscribeAudio(request, env, cors) {
   } catch (e) {
     return json({ ok: false, error: "Could not transcribe the audio.", detail: String(e.message || e) }, 502, cors);
   }
+}
+
+// ---------- 1:1 Comparison: AI compliance summary (POST /compare-summary) ----------
+const COMPARE_SUMMARY_SYSTEM_PROMPT = [
+  "You are a senior Medicare marketing compliance reviewer at a multi-carrier TPMO, judging how two versions of the same marketing piece (or a document vs. a live page) differ.",
+  "You are given a JSON payload describing an ALREADY-COMPUTED comparison: overall similarity, whether the SMID fields match, whether each document has reviewer comments or tracked changes (informational only -- never compare or quote comment/tracked-change content), and a 'changes' array -- the actual content differences, each with the section of the document it falls in, the baseline wording, and the other document/page's wording. A count of purely spacing/punctuation-only differences is also given -- these are NOT in the changes array and must never be treated as a reason the documents don't match.",
+  "Do not invent, re-derive, merge, or skip the differences you're given -- judge exactly what's in the 'changes' array, one verdict per change, in the same order, same count.",
+  "",
+  "For EACH change, decide two things using general CMS/Medicare Communications and Marketing Guidelines (MCMG) knowledge:",
+  "1. relevant: true if this difference actually changes something a compliance reviewer would care about -- a disclaimer/disclosure added, removed, or materially altered; named benefits, cost-sharing, premiums, or eligibility conditions; Star Ratings or other substantiated claims; contact/phone requirements; anything that changes what a beneficiary is told. relevant: false if it's the same substance in different words -- a synonym swap, softened phrasing, singular/plural, a typo fix, reordering -- that doesn't change what's being disclosed or offered.",
+  "2. severity: 'high' for a missing/incorrect required disclosure or a substantive factual change, 'medium' for something a reviewer should confirm but isn't clearly a violation on its own, 'low' for anything not relevant (stylistic) or a very minor relevant tweak.",
+  "",
+  "Respond with ONLY this exact JSON shape -- no markdown code fences, no prose before or after it:",
+  "{\"match\": boolean, \"headline\": \"one factual sentence: verdict, similarity, and SMID match status if both were found\", \"note\": \"one more sentence of context if genuinely useful (comments/tracked-changes count, a precedent pattern) -- empty string if nothing to add\", \"items\": [{\"element\": \"short label for what this is, e.g. 'SSBCI disclaimer' or 'Hero headline wording'\", \"relevant\": boolean, \"severity\": \"high\"|\"medium\"|\"low\", \"reason\": \"under 15 words, factual\"}]}",
+  "The items array must have EXACTLY one entry per entry in the input 'changes' array, in the same order -- this is used to programmatically pair each verdict back to its change, so a wrong count or order breaks the tool.",
+  "If the documents are a 1:1 match (empty changes array), return match: true, an empty items array, and a one-line headline saying so.",
+  "Be terse in 'reason' and 'element' -- these render in a compact table, not a narrative."
+].join("\n");
+
+async function handleCompareSummary(request, env, cors) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+
+  if (!env.STORAGE_SHARED_KEY) {
+    return json({ ok: false, error: "Server is missing STORAGE_SHARED_KEY. Add it as a Worker Secret." }, 500, cors);
+  }
+  const provided = request.headers.get("x-apex-key") || "";
+  if (provided !== env.STORAGE_SHARED_KEY) {
+    return json({ ok: false, error: "Unauthorized." }, 401, cors);
+  }
+  if (!env.ANTHROPIC_API_KEY) {
+    return json({ ok: false, error: "Server is missing ANTHROPIC_API_KEY. Add it in the Worker's Settings > Variables and Secrets." }, 500, cors);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+
+  if (!body || typeof body !== "object") {
+    return json({ ok: false, error: "Missing comparison payload." }, 400, cors);
+  }
+  // Bounded regardless of how large a document's change list gets.
+  const payload = JSON.stringify(body).slice(0, 20000);
+
+  let apiResp;
+  try {
+    apiResp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: env.MODEL || "claude-sonnet-5",
+        max_tokens: 3000,
+        system: COMPARE_SUMMARY_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: "Comparison payload:\n" + payload }]
+      })
+    });
+  } catch (e) {
+    return json({ ok: false, error: "Could not reach the AI service.", detail: String(e) }, 502, cors);
+  }
+
+  if (!apiResp.ok) {
+    const detail = await apiResp.text();
+    return json({ ok: false, error: "AI request failed (" + apiResp.status + ").", detail: detail.slice(0, 600) }, 502, cors);
+  }
+
+  const data = await apiResp.json();
+  const blocks = (data && Array.isArray(data.content)) ? data.content : [];
+  const text = blocks
+    .filter(function (b) { return b && b.type === "text" && typeof b.text === "string"; })
+    .map(function (b) { return b.text; })
+    .join("\n")
+    .trim();
+
+  if (!text) return json({ ok: false, error: "The AI returned an empty response." }, 502, cors);
+
+  // Strip a stray ```json fence if the model adds one despite the instruction not to.
+  const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+  let parsed;
+  try { parsed = JSON.parse(cleaned); }
+  catch (e) { return json({ ok: false, error: "The AI's response wasn't valid JSON.", detail: cleaned.slice(0, 600) }, 502, cors); }
+
+  const expectedCount = Array.isArray(body.changes) ? body.changes.length : null;
+  const items = Array.isArray(parsed.items) ? parsed.items : [];
+  if (expectedCount !== null && items.length !== expectedCount) {
+    return json({ ok: false, error: "AI returned " + items.length + " verdicts for " + expectedCount + " changes — counts must match." }, 502, cors);
+  }
+
+  return json({ ok: true, match: !!parsed.match, headline: String(parsed.headline || ""), note: String(parsed.note || ""), items: items }, 200, cors);
+}
+
+// ---------- 1:1 Comparison: fetch a live URL as plain text (POST /fetch-url) ----------
+// Backs the "URL / doc vs document" mode's URL side -- the browser can't
+// fetch an arbitrary third-party page itself (CORS), so this proxies it
+// server-side and strips markup down to plain text for the same diffing
+// path a second uploaded document goes through.
+function htmlToPlainText(html) {
+  var text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(br|p|div|li|tr|h[1-6])[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+  var entities = { "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'", "&rsquo;": "’", "&lsquo;": "‘", "&mdash;": "—", "&ndash;": "–" };
+  text = text.replace(/&nbsp;|&amp;|&lt;|&gt;|&quot;|&#39;|&rsquo;|&lsquo;|&mdash;|&ndash;/g, function (m) { return entities[m]; });
+  text = text.replace(/&#(\d+);/g, function (_, code) { return String.fromCharCode(parseInt(code, 10)); });
+  return text.split("\n").map(function (line) { return line.replace(/[ \t]+/g, " ").trim(); }).filter(function (line) { return line.length > 0; }).join("\n");
+}
+
+async function handleFetchUrl(request, env, cors) {
+  if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  if (!env.STORAGE_SHARED_KEY) {
+    return json({ ok: false, error: "Server is missing STORAGE_SHARED_KEY. Add it as a Worker Secret." }, 500, cors);
+  }
+  const provided = request.headers.get("x-apex-key") || "";
+  if (provided !== env.STORAGE_SHARED_KEY) {
+    return json({ ok: false, error: "Unauthorized." }, 401, cors);
+  }
+
+  let body;
+  try { body = await request.json(); }
+  catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const targetUrl = (body.url || "").trim();
+  if (!targetUrl) return json({ ok: false, error: "url is required." }, 400, cors);
+
+  let parsed;
+  try { parsed = new URL(targetUrl); } catch { return json({ ok: false, error: "That doesn't look like a valid URL." }, 400, cors); }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return json({ ok: false, error: "Only http/https URLs are supported." }, 400, cors);
+  }
+
+  let resp;
+  try {
+    resp = await fetch(parsed.toString(), {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BroadBaseComplianceTool/1.0)" },
+      redirect: "follow"
+    });
+  } catch (e) {
+    return json({ ok: false, error: "Could not reach that URL.", detail: String(e.message || e) }, 502, cors);
+  }
+  if (!resp.ok) {
+    return json({ ok: false, error: "That URL returned an error (HTTP " + resp.status + ")." }, 502, cors);
+  }
+  const contentType = resp.headers.get("content-type") || "";
+  if (contentType && contentType.indexOf("text/html") === -1 && contentType.indexOf("text/plain") === -1 && contentType.indexOf("application/xhtml") === -1) {
+    return json({ ok: false, error: "That URL is not a web page (content-type: " + contentType + ")." }, 400, cors);
+  }
+
+  const html = await resp.text();
+  const text = htmlToPlainText(html).slice(0, 150000);
+  if (!text) return json({ ok: false, error: "Could not extract any readable text from that page." }, 502, cors);
+  return json({ ok: true, text: text, finalUrl: resp.url || parsed.toString() }, 200, cors);
 }
