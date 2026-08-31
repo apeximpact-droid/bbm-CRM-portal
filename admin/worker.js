@@ -1311,7 +1311,7 @@ async function handleCarriersList(request, env, cors) {
   if (authErr) return authErr;
   let carriers;
   try {
-    carriers = await supabaseRest(env, "carrier_organizations?select=id,name,active,created_at,submission_form_url,main_submission_email,logo_path,submission_form_file_path,submission_form_file_name,carrier_contacts(count)&order=name.asc");
+    carriers = await supabaseRest(env, "carrier_organizations?select=id,name,active,created_at,submission_form_url,main_submission_email,logo_path,submission_form_file_path,submission_form_file_name,color,carrier_contacts(count)&order=name.asc");
   } catch (e) {
     return json({ ok: false, error: "Could not load carrier organizations from Supabase.", detail: String(e.message || e) }, 502, cors);
   }
@@ -1326,6 +1326,7 @@ async function handleCarriersList(request, env, cors) {
       mainSubmissionEmail: c.main_submission_email,
       hasLogo: !!c.logo_path, logoUrl: logoUrl,
       submissionFormFileName: c.submission_form_file_name || null,
+      color: c.color || null,
       contactCount: (c.carrier_contacts && c.carrier_contacts[0] && c.carrier_contacts[0].count) || 0
     };
   }));
@@ -1368,6 +1369,7 @@ async function handleCarrierUpdate(request, env, cors) {
   if (typeof body.active === "boolean") patch.active = body.active;
   if (Object.prototype.hasOwnProperty.call(body, "submissionFormUrl")) patch.submission_form_url = (body.submissionFormUrl || "").trim() || null;
   if (Object.prototype.hasOwnProperty.call(body, "mainSubmissionEmail")) patch.main_submission_email = (body.mainSubmissionEmail || "").trim() || null;
+  if (Object.prototype.hasOwnProperty.call(body, "color")) patch.color = (body.color || "").trim() || null;
   if (Object.keys(patch).length === 0) return json({ ok: false, error: "Nothing to update." }, 400, cors);
 
   let updated;
