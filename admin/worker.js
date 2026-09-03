@@ -85,7 +85,9 @@
  *   add RESEND_API_KEY, ALLEGATION_WEBHOOK_SECRET, TASK_WEBHOOK_SECRET,
  *   ALLEGATION_NOTIFY_EMAIL (= compliance@broadbasemedia.com),
  *   ALLEGATION_NOTIFY_FROM and TASK_NOTIFY_FROM to this Worker and deploy.
- *   The from-addresses require a domain verified in Resend first.
+ *   Create a NEW Resend account for BroadBase Media (do not reuse Apex's)
+ *   and verify broadbasemedia.com in it first — the from-addresses must be
+ *   on a domain verified in that account.
  *
  *   Secret     ANTHROPIC_API_KEY        = your sk-ant-... key — powers the
  *                                         Video Submission Builder's

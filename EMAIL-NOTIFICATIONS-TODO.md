@@ -37,12 +37,14 @@ Resend only delivers mail from a **verified domain**. Its default test sender
 (`onboarding@resend.dev`) delivers only to the Resend account owner's own signup address,
 so it cannot be used for compliance@broadbasemedia.com or the admin team.
 
-- Either use Apex's existing Resend account or create one for BroadBase; both work. One
-  account can hold several verified domains and several API keys.
-- In Resend → **Domains → Add Domain**, add `broadbasemedia.com` and publish the DNS
-  records it gives you (DKIM, SPF, and the bounce-subdomain MX) at BroadBase's DNS host.
-  Wait until it shows **Verified**.
-- In Resend → **API Keys**, create a key (suggest naming it "BBM portal", Sending access).
+- **Create a new Resend account for BroadBase Media** at resend.com (the free tier is
+  enough). This mirrors how the Apex portal was set up — Apex has its own Resend account
+  with its own verified domain and key — and keeps BBM's sending reputation, domain and
+  API key fully separate from Apex's. Do not reuse Apex's account or key.
+- In that account, Resend → **Domains → Add Domain**, add `broadbasemedia.com` and publish
+  the DNS records it gives you (DKIM, SPF, and the bounce-subdomain MX) at BroadBase's DNS
+  host. Wait until it shows **Verified**.
+- Resend → **API Keys**, create a key (suggest naming it "BBM portal", Sending access).
   Keep it for step 3. Never commit it to this repo.
 
 ### 2. Point the database triggers at the Worker
@@ -67,7 +69,7 @@ changes do not take effect until deployed).
 
 | Name | Type | Value |
 |---|---|---|
-| `RESEND_API_KEY` | Secret | the Resend API key from step 1 |
+| `RESEND_API_KEY` | Secret | the API key from the new BroadBase Resend account (step 1) |
 | `ALLEGATION_WEBHOOK_SECRET` | Secret | `1b623f5163fdbf8a1ea6b87086e6ab333a8b8ec8f854896c` |
 | `TASK_WEBHOOK_SECRET` | Secret | `516c74895002471b8304d44c67fa9fc76906a3e22e434e28` |
 | `ALLEGATION_NOTIFY_EMAIL` | Text | `compliance@broadbasemedia.com` (comma-separate to add more recipients; BBM has asked for this address only) |

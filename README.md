@@ -65,7 +65,7 @@ One thing that migration can't reach: Supabase Auth accounts. If the removed aff
 
 Every new Allegation/Audit Request (public page or in-portal tab) emails `ALLEGATION_NOTIFY_EMAIL` (`compliance@broadbasemedia.com` only), and every new task emails its assignee, via Postgres trigger → Worker route → Resend. The Allegations tab also shows a live red badge with the count of allegations still `Open`/`Investigating`.
 
-**This is the one part of the system that is not live.** The Worker has none of the email settings and the database triggers were created pointing at a placeholder URL. `EMAIL-NOTIFICATIONS-TODO.md` at the repo root has the exact migration to run, the six Worker variables with their values, the Resend domain-verification requirement, and how to verify. The Worker code itself needs no changes.
+**This is the one part of the system that is not live.** The Worker has none of the email settings and the database triggers were created pointing at a placeholder URL. `EMAIL-NOTIFICATIONS-TODO.md` at the repo root has the exact migration to run, the six Worker variables with their values, the instruction to create a dedicated BroadBase Resend account and verify `broadbasemedia.com` in it, and how to verify. The Worker code itself needs no changes.
 
 ### 4. Deploy the Worker
 
