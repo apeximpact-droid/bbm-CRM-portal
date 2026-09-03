@@ -55,13 +55,38 @@
  *                                         emailed on every new allegation
  *                                         submission — for BroadBase Media,
  *                                         that's compliance@broadbasemedia.com
- *   Variable   ALLEGATION_NOTIFY_FROM (optional) = the Resend "from" address
- *                                         to send that email from — defaults
- *                                         to onboarding@resend.dev if unset,
- *                                         which only works reliably once a
- *                                         sending domain is verified in
- *                                         Resend for anything beyond your own
- *                                         account's signup address
+ *   Variable   ALLEGATION_NOTIFY_FROM   = the Resend "from" address for the
+ *                                         new-allegation email. Falls back to
+ *                                         onboarding@resend.dev if unset, but
+ *                                         that test sender ONLY delivers to
+ *                                         the Resend account owner's own
+ *                                         address — so in practice this must
+ *                                         be an address on a domain verified
+ *                                         in Resend (e.g.
+ *                                         compliance@broadbasemedia.com)
+ *   Secret     TASK_WEBHOOK_SECRET      = same idea as ALLEGATION_WEBHOOK_SECRET
+ *                                         but for the tasks table's INSERT
+ *                                         trigger -> POST /tasks/notify
+ *   Variable   TASK_NOTIFY_FROM         = the Resend "from" address for the
+ *                                         "task assigned to you" email sent
+ *                                         to the assigned admin. Same
+ *                                         verified-domain requirement as
+ *                                         ALLEGATION_NOTIFY_FROM.
+ *
+ *   >>> DEVELOPER TODO (email notifications are NOT live yet) <<<
+ *   As of 2026-09-03 the deployed BBM Worker has only STORAGE_SHARED_KEY,
+ *   SUPABASE_SERVICE_ROLE_KEY and SUPABASE_URL set. None of the email
+ *   settings above exist, so /allegations/notify and /tasks/notify reject
+ *   every call and no notification email has ever been sent for BBM. The
+ *   exact steps, values and verification are in EMAIL-NOTIFICATIONS-TODO.md
+ *   at the repo root. Short version: run migration
+ *   supabase/migrations/20260903090000_notify_webhooks_point_at_bbm_worker.sql
+ *   (points both DB triggers at this Worker with the secrets below), then
+ *   add RESEND_API_KEY, ALLEGATION_WEBHOOK_SECRET, TASK_WEBHOOK_SECRET,
+ *   ALLEGATION_NOTIFY_EMAIL (= compliance@broadbasemedia.com),
+ *   ALLEGATION_NOTIFY_FROM and TASK_NOTIFY_FROM to this Worker and deploy.
+ *   The from-addresses require a domain verified in Resend first.
+ *
  *   Secret     ANTHROPIC_API_KEY        = your sk-ant-... key — powers the
  *                                         Video Submission Builder's
  *                                         on-screen-text OCR step

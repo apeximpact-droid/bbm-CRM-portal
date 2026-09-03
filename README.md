@@ -14,7 +14,7 @@ partner-client/
   allegations.html  — a standalone public form (no login) for submitting an allegation/audit request
   bbm-logo.png
 supabase/
-  migrations/        — 49 SQL files defining the full database schema, run in filename order
+  migrations/        — 61 SQL files defining the full database schema, run in filename order
 data-export/          — empty; see "Getting real data in" below
 ```
 
@@ -61,15 +61,11 @@ If `psql` isn't installed locally, the Supabase SQL Editor can run the same file
 
 One thing that migration can't reach: Supabase Auth accounts. If the removed affiliate had its own partner-portal login, delete that user separately via the new project's Authentication panel — the migration only removes the `organizations` row and its regular data, not the linked `auth.users` account.
 
-### 3b. New allegation email notifications + the Allegations tab badge
+### 3b. Email notifications (allegations + tasks) — **OPEN ITEM, see `EMAIL-NOTIFICATIONS-TODO.md`**
 
-Every time someone submits the Allegation/Audit Request form (public page or the in-portal tab), the app now emails `ALLEGATION_NOTIFY_EMAIL` (set this to `compliance@broadbasemedia.com`) with the submitted details, via a Postgres trigger → Worker route → Resend. The Allegations tab in the CRM Admin Portal also shows a live red badge with the count of allegations still `Open`/`Investigating` (not yet `Resolved`/`Dismissed`).
+Every new Allegation/Audit Request (public page or in-portal tab) emails `ALLEGATION_NOTIFY_EMAIL` (`compliance@broadbasemedia.com` only), and every new task emails its assignee, via Postgres trigger → Worker route → Resend. The Allegations tab also shows a live red badge with the count of allegations still `Open`/`Investigating`.
 
-To wire this up:
-1. Create a free account at resend.com and get an API key.
-2. If you want to send from your own domain (recommended for production — otherwise Resend can only reliably deliver to your own account's signup address), verify a sending domain in Resend first.
-3. Open `supabase/migrations/20260827020000_allegation_notify_webhook.sql` and replace its two placeholders — `REPLACE_WITH_YOUR_WORKER_URL` (your deployed Worker's URL) and `REPLACE_WITH_YOUR_ALLEGATION_WEBHOOK_SECRET` (any random string you generate) — then run it (or re-run it any time after editing; it's a `create or replace function`, safe to run repeatedly).
-4. Set the matching Worker secrets (see step 4 below): `ALLEGATION_WEBHOOK_SECRET` (must exactly match what you put in the migration), `RESEND_API_KEY`, `ALLEGATION_NOTIFY_EMAIL`, and optionally `ALLEGATION_NOTIFY_FROM`.
+**This is the one part of the system that is not live.** The Worker has none of the email settings and the database triggers were created pointing at a placeholder URL. `EMAIL-NOTIFICATIONS-TODO.md` at the repo root has the exact migration to run, the six Worker variables with their values, the Resend domain-verification requirement, and how to verify. The Worker code itself needs no changes.
 
 ### 4. Deploy the Worker
 
@@ -82,10 +78,12 @@ Deploy `admin/worker.js` to Cloudflare Workers (or adapt it — it's a standard 
 | `STORAGE_SHARED_KEY` | Any random string you generate — this is the shared secret between the Worker and `admin/index.html` |
 | `MONDAY_API_TOKEN` | Only needed if you want the Compliance Workflow board-sync feature working (see the note above — it's currently unreachable from the UI anyway) |
 | `ANTHROPIC_API_KEY` | Needed for the Video Submission Builder's on-screen-text OCR (Claude's vision API) — get one at console.anthropic.com |
-| `ALLEGATION_WEBHOOK_SECRET` | Must exactly match the secret you put in `20260827020000_allegation_notify_webhook.sql` |
-| `RESEND_API_KEY` | Your Resend API key — powers the new-allegation notification email |
+| `ALLEGATION_WEBHOOK_SECRET` | Must exactly match the secret in `20260903090000_notify_webhooks_point_at_bbm_worker.sql` (allegations trigger) |
+| `TASK_WEBHOOK_SECRET` | Must exactly match the secret in the same migration (tasks trigger) |
+| `RESEND_API_KEY` | Your Resend API key — powers both notification emails |
 | `ALLEGATION_NOTIFY_EMAIL` | `compliance@broadbasemedia.com` — or a comma-separated list to notify more than one address |
-| `ALLEGATION_NOTIFY_FROM` (optional) | The Resend "from" address — defaults to `onboarding@resend.dev` if unset |
+| `ALLEGATION_NOTIFY_FROM` | The Resend "from" address for allegation emails — must be on a domain verified in Resend (the `onboarding@resend.dev` fallback only delivers to the Resend account owner) |
+| `TASK_NOTIFY_FROM` | The Resend "from" address for task-assignment emails — same verified-domain requirement |
 
 Read the docstring at the top of `worker.js` for the full list and where each one is used.
 
@@ -115,7 +113,7 @@ with your new project's URL and anon/public key (safe for client-side use — it
 ## Quick placeholder checklist
 
 - [ ] `admin/index.html`: `APEX_STORAGE_KEY`, `AI_ENDPOINT`
-- [ ] `admin/worker.js`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STORAGE_SHARED_KEY`, `MONDAY_API_TOKEN` (optional), `ANTHROPIC_API_KEY`, `ALLEGATION_WEBHOOK_SECRET`, `RESEND_API_KEY`, `ALLEGATION_NOTIFY_EMAIL`, `ALLEGATION_NOTIFY_FROM` (optional)
-- [ ] `supabase/migrations/20260827020000_allegation_notify_webhook.sql`: Worker URL + webhook secret placeholders
+- [ ] `admin/worker.js`: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `STORAGE_SHARED_KEY`, `MONDAY_API_TOKEN` (optional), `ANTHROPIC_API_KEY`, `ALLEGATION_WEBHOOK_SECRET`, `TASK_WEBHOOK_SECRET`, `RESEND_API_KEY`, `ALLEGATION_NOTIFY_EMAIL`, `ALLEGATION_NOTIFY_FROM`, `TASK_NOTIFY_FROM`
+- [ ] `supabase/migrations/20260903090000_notify_webhooks_point_at_bbm_worker.sql`: run it (already carries the real Worker URL + secrets; supersedes the placeholders in `20260827020000` and `20260901030000`)
 - [ ] `partner-client/index.html`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, compliance email
 - [ ] `partner-client/allegations.html`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, compliance email
