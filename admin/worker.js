@@ -241,18 +241,6 @@ export default {
     if (url.pathname === "/partner-admin/carriers/submission-form-file/download-url") {
       return handleCarrierSubmissionFormFileDownloadUrl(request, env, cors, url);
     }
-    if (url.pathname === "/partner-admin/material-submissions") {
-      return handleMaterialSubmissionsList(request, env, cors);
-    }
-    if (url.pathname === "/partner-admin/material-submissions/files") {
-      return handleMaterialSubmissionFilesList(request, env, cors, url);
-    }
-    if (url.pathname === "/partner-admin/material-submissions/update") {
-      return handleMaterialSubmissionUpdate(request, env, cors);
-    }
-    if (url.pathname === "/partner-admin/material-submissions/delete") {
-      return handleMaterialSubmissionDelete(request, env, cors);
-    }
     if (url.pathname === "/partner-admin/allegations") {
       return handleAllegationsList(request, env, cors);
     }
@@ -262,8 +250,53 @@ export default {
     if (url.pathname === "/partner-admin/allegations/delete") {
       return handleAllegationDelete(request, env, cors);
     }
+    if (url.pathname === "/partner-admin/allegations/audio/upload") {
+      return handleAllegationAudioUpload(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/allegations/audio/delete") {
+      return handleAllegationAudioDelete(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/allegations/audio/download-url") {
+      return handleAllegationAudioDownloadUrl(request, env, cors, url);
+    }
+    if (url.pathname === "/partner-admin/allegations/documents/upload") {
+      return handleAllegationDocumentUpload(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/allegations/documents/delete") {
+      return handleAllegationDocumentDelete(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/allegations/documents/download-url") {
+      return handleAllegationDocumentDownloadUrl(request, env, cors, url);
+    }
     if (url.pathname === "/allegations/notify") {
       return handleAllegationNotify(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks") {
+      return handleTasksList(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks/create") {
+      return handleTaskCreate(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks/update") {
+      return handleTaskUpdate(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks/delete") {
+      return handleTaskDelete(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks/files/upload") {
+      return handleTaskFileUpload(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks/files/delete") {
+      return handleTaskFileDelete(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/tasks/files/download-url") {
+      return handleTaskFileDownloadUrl(request, env, cors, url);
+    }
+    if (url.pathname === "/partner-admin/admin-users") {
+      return handleAdminUsersList(request, env, cors);
+    }
+    if (url.pathname === "/tasks/notify") {
+      return handleTaskNotify(request, env, cors);
     }
     if (url.pathname === "/partner-admin/apex-logins") {
       return handleApexOperationalLoginsList(request, env, cors);
@@ -459,6 +492,21 @@ export default {
     }
     if (url.pathname === "/partner-admin/materials/admin-files/download-url") {
       return handlePartnerAdminFileDownloadUrl(request, env, cors, url);
+    }
+    if (url.pathname === "/partner-admin/materials/updates/create") {
+      return handleMaterialUpdateCreate(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/materials/updates/delete") {
+      return handleMaterialUpdateDelete(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/materials/updates/files/upload") {
+      return handleMaterialUpdateFileUpload(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/materials/updates/files/delete") {
+      return handleMaterialUpdateFileDelete(request, env, cors);
+    }
+    if (url.pathname === "/partner-admin/materials/updates/files/download-url") {
+      return handleMaterialUpdateFileDownloadUrl(request, env, cors, url);
     }
     if (url.pathname === "/compare-summary") {
       return handleCompareSummary(request, env, cors);
@@ -926,7 +974,7 @@ async function handlePartnerOrgUpdate(request, env, cors) {
 
 // Permanently deletes an organization. Every child table's org_id foreign
 // key is "on delete cascade" (portal logins, guideline docs, MSA docs,
-// submission forms, material shares, material_submissions, ...), so
+// submission forms, material shares, ...), so
 // deleting the row here cascades all of it
 // automatically. Two things do NOT cascade and need explicit cleanup first:
 // (1) each user's actual auth.users account (users.org_id cascades the
@@ -1503,104 +1551,6 @@ async function handleCarrierSubmissionFormFileDownloadUrl(request, env, cors, ur
 }
 
 // ---------------------------------------------------------------------------
-// Material Submissions -- partner orgs submit their own marketing materials
-// for compliance review, directly from the Partner Portal client using their
-// own authenticated Supabase session (RLS-gated insert, org_id =
-// current_org_id()), NOT through this Worker. The Worker only handles the
-// admin review side: listing every org's submissions, viewing/downloading
-// their files, and updating status/review notes -- same service-role-key
-// pattern as every other admin-side CRUD in this file.
-// ---------------------------------------------------------------------------
-
-const MATERIAL_SUBMISSION_FIELDS = "id,org_id,submitter_name,submitter_email,submitter_phone,material_type,carrier_tags,line_of_business,attestation_reviewed_guidelines,attestation_meets_requirements,attestation_changes_made,attestation_owns_creative,status,review_notes,reviewed_at,version,parent_submission_id,created_at,updated_at";
-
-async function handleMaterialSubmissionsList(request, env, cors) {
-  const authErr = partnerAdminAuthCheck(request, env, cors);
-  if (authErr) return authErr;
-  let rows;
-  try {
-    rows = await supabaseRest(env, "material_submissions?select=" + encodeURIComponent(MATERIAL_SUBMISSION_FIELDS + ",organizations(name),material_submission_files(count)") + "&order=created_at.desc");
-  } catch (e) {
-    return json({ ok: false, error: "Could not load material submissions from Supabase.", detail: String(e.message || e) }, 502, cors);
-  }
-  const results = (rows || []).map(function (r) {
-    return {
-      id: r.id, orgId: r.org_id, orgName: r.organizations ? r.organizations.name : null,
-      submitterName: r.submitter_name, submitterEmail: r.submitter_email, submitterPhone: r.submitter_phone,
-      materialType: r.material_type, carrierTags: r.carrier_tags || [], lineOfBusiness: r.line_of_business || [],
-      attestationReviewedGuidelines: r.attestation_reviewed_guidelines, attestationMeetsRequirements: r.attestation_meets_requirements,
-      attestationChangesMade: r.attestation_changes_made, attestationOwnsCreative: r.attestation_owns_creative,
-      status: r.status, reviewNotes: r.review_notes, reviewedAt: r.reviewed_at,
-      version: r.version, parentSubmissionId: r.parent_submission_id,
-      fileCount: (r.material_submission_files && r.material_submission_files[0] && r.material_submission_files[0].count) || 0,
-      createdAt: r.created_at, updatedAt: r.updated_at
-    };
-  });
-  return json({ ok: true, submissions: results }, 200, cors);
-}
-
-async function handleMaterialSubmissionFilesList(request, env, cors, url) {
-  const authErr = partnerAdminAuthCheck(request, env, cors);
-  if (authErr) return authErr;
-  const submissionId = url.searchParams.get("submissionId");
-  if (!submissionId) return json({ ok: false, error: "submissionId is required." }, 400, cors);
-  let rows;
-  try {
-    rows = await supabaseRest(env, "material_submission_files?submission_id=eq." + encodeURIComponent(submissionId) + "&select=id,file_path,file_name,created_at&order=created_at.asc");
-  } catch (e) {
-    return json({ ok: false, error: "Could not load files.", detail: String(e.message || e) }, 502, cors);
-  }
-  const results = await Promise.all((rows || []).map(async function (f) {
-    let url2 = null;
-    try { url2 = await supabaseStorageSignedUrl(env, f.file_path, 300, MATERIAL_SUBMISSION_FILES_BUCKET, f.file_name); } catch (e) {}
-    return { id: f.id, fileName: f.file_name, url: url2, createdAt: f.created_at };
-  }));
-  return json({ ok: true, files: results }, 200, cors);
-}
-
-async function handleMaterialSubmissionUpdate(request, env, cors) {
-  const authErr = partnerAdminAuthCheck(request, env, cors);
-  if (authErr) return authErr;
-  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
-  let body;
-  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
-  const id = body.id;
-  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
-  if (body.status && ["Pending", "Approved", "Rejected", "Needs Changes"].indexOf(body.status) === -1) {
-    return json({ ok: false, error: "Invalid status." }, 400, cors);
-  }
-  const patch = pickDefined(body, ["status", "reviewNotes"]);
-  const dbPatch = {};
-  if (Object.prototype.hasOwnProperty.call(patch, "status")) { dbPatch.status = patch.status; dbPatch.reviewed_at = new Date().toISOString(); }
-  if (Object.prototype.hasOwnProperty.call(patch, "reviewNotes")) dbPatch.review_notes = patch.reviewNotes;
-  let updated;
-  try {
-    updated = await supabaseRest(env, "material_submissions?id=eq." + encodeURIComponent(id), { method: "PATCH", body: dbPatch });
-  } catch (e) {
-    return json({ ok: false, error: "Could not update the submission.", detail: String(e.message || e) }, 502, cors);
-  }
-  return json({ ok: true, submission: updated && updated[0] }, 200, cors);
-}
-
-async function handleMaterialSubmissionDelete(request, env, cors) {
-  const authErr = partnerAdminAuthCheck(request, env, cors);
-  if (authErr) return authErr;
-  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
-  let body;
-  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
-  const id = body.id;
-  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
-  try {
-    const files = await supabaseRest(env, "material_submission_files?submission_id=eq." + encodeURIComponent(id) + "&select=file_path");
-    await Promise.all((files || []).map(function (f) { return supabaseStorageDelete(env, f.file_path, MATERIAL_SUBMISSION_FILES_BUCKET); }));
-    await supabaseRest(env, "material_submissions?id=eq." + encodeURIComponent(id), { method: "DELETE", prefer: "return=minimal" });
-  } catch (e) {
-    return json({ ok: false, error: "Could not delete the submission.", detail: String(e.message || e) }, 502, cors);
-  }
-  return json({ ok: true }, 200, cors);
-}
-
-// ---------------------------------------------------------------------------
 // Allegations -- buyers/partners/clients submit an allegation/audit request
 // via a fully public, unauthenticated form (no Partner Portal login) that
 // writes directly to Supabase under RLS's open insert policy, NOT through
@@ -1612,14 +1562,15 @@ async function handleMaterialSubmissionDelete(request, env, cors) {
 // Phone/Name, Call Duration) -- no file upload field exists on the real form.
 // ---------------------------------------------------------------------------
 
-const ALLEGATION_FIELDS = "id,receival_date,due_date,email_thread_title,allegation_form_link,org_name,submitter_name,submitter_email,lead_date,lead_phone_country_code,lead_phone_number,lead_name,call_duration,status,investigation_notes,resolved_at,created_at,updated_at";
+const ALLEGATION_FIELDS = "id,receival_date,due_date,email_thread_title,allegation_form_link,org_name,submitter_name,submitter_email,lead_date,lead_phone_country_code,lead_phone_number,lead_name,call_duration,smid,corresponding_url,audio_file_path,audio_file_name,status,investigation_notes,resolved_at,created_at,updated_at";
+const ALLEGATION_EVIDENCE_BUCKET = "allegation-evidence";
 
 async function handleAllegationsList(request, env, cors) {
   const authErr = partnerAdminAuthCheck(request, env, cors);
   if (authErr) return authErr;
   let rows;
   try {
-    rows = await supabaseRest(env, "allegations?select=" + encodeURIComponent(ALLEGATION_FIELDS) + "&order=created_at.desc");
+    rows = await supabaseRest(env, "allegations?select=" + encodeURIComponent(ALLEGATION_FIELDS + ",allegation_documents(id,file_name,uploaded_at)") + "&order=created_at.desc");
   } catch (e) {
     return json({ ok: false, error: "Could not load allegations from Supabase.", detail: String(e.message || e) }, 502, cors);
   }
@@ -1630,12 +1581,18 @@ async function handleAllegationsList(request, env, cors) {
       submitterEmail: r.submitter_email, leadDate: r.lead_date,
       leadPhoneCountryCode: r.lead_phone_country_code, leadPhoneNumber: r.lead_phone_number,
       leadName: r.lead_name, callDuration: r.call_duration,
+      smid: r.smid, correspondingUrl: r.corresponding_url, audioFileName: r.audio_file_name,
+      documents: (r.allegation_documents || []).map(function (d) {
+        return { id: d.id, fileName: d.file_name, uploadedAt: d.uploaded_at };
+      }),
       status: r.status, investigationNotes: r.investigation_notes, resolvedAt: r.resolved_at,
       createdAt: r.created_at, updatedAt: r.updated_at
     };
   });
   return json({ ok: true, allegations: results }, 200, cors);
 }
+
+const ALLEGATION_UPDATE_FIELD_MAP = { status: "status", investigationNotes: "investigation_notes", receivalDate: "receival_date", dueDate: "due_date", emailThreadTitle: "email_thread_title", allegationFormLink: "allegation_form_link", orgName: "org_name", submitterName: "submitter_name", submitterEmail: "submitter_email", leadDate: "lead_date", leadPhoneCountryCode: "lead_phone_country_code", leadPhoneNumber: "lead_phone_number", leadName: "lead_name", callDuration: "call_duration", smid: "smid", correspondingUrl: "corresponding_url" };
 
 async function handleAllegationUpdate(request, env, cors) {
   const authErr = partnerAdminAuthCheck(request, env, cors);
@@ -1648,10 +1605,11 @@ async function handleAllegationUpdate(request, env, cors) {
   if (body.status && ["Open", "Investigating", "Resolved", "Dismissed"].indexOf(body.status) === -1) {
     return json({ ok: false, error: "Invalid status." }, 400, cors);
   }
-  const patch = pickDefined(body, ["status", "investigationNotes"]);
+  const patch = pickDefined(body, Object.keys(ALLEGATION_UPDATE_FIELD_MAP));
   const dbPatch = {};
-  if (Object.prototype.hasOwnProperty.call(patch, "status")) { dbPatch.status = patch.status; dbPatch.resolved_at = (patch.status === "Resolved" || patch.status === "Dismissed") ? new Date().toISOString() : null; }
-  if (Object.prototype.hasOwnProperty.call(patch, "investigationNotes")) dbPatch.investigation_notes = patch.investigationNotes;
+  Object.keys(patch).forEach(function (k) { dbPatch[ALLEGATION_UPDATE_FIELD_MAP[k]] = patch[k]; });
+  if (Object.prototype.hasOwnProperty.call(patch, "status")) { dbPatch.resolved_at = (patch.status === "Resolved" || patch.status === "Dismissed") ? new Date().toISOString() : null; }
+  if (Object.keys(dbPatch).length === 0) return json({ ok: false, error: "Nothing to update." }, 400, cors);
   let updated;
   try {
     updated = await supabaseRest(env, "allegations?id=eq." + encodeURIComponent(id), { method: "PATCH", body: dbPatch });
@@ -1659,6 +1617,130 @@ async function handleAllegationUpdate(request, env, cors) {
     return json({ ok: false, error: "Could not update the allegation.", detail: String(e.message || e) }, 502, cors);
   }
   return json({ ok: true, allegation: updated && updated[0] }, 200, cors);
+}
+
+async function handleAllegationAudioUpload(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let form;
+  try { form = await request.formData(); }
+  catch { return json({ ok: false, error: "Expected multipart/form-data." }, 400, cors); }
+  const id = form.get("id");
+  const file = form.get("audio");
+  if (!id || !file || typeof file === "string") {
+    return json({ ok: false, error: "id and audio are required." }, 400, cors);
+  }
+  const safeName = String(file.name || "audio").replace(/[^A-Za-z0-9._-]/g, "_");
+  const path = "allegations/" + id + "/" + Date.now() + "-" + safeName;
+  try {
+    const oldRows = await supabaseRest(env, "allegations?id=eq." + encodeURIComponent(id) + "&select=audio_file_path").catch(function () { return []; });
+    const oldPath = oldRows && oldRows[0] && oldRows[0].audio_file_path;
+    await supabaseStorageUpload(env, path, file, file.type, ALLEGATION_EVIDENCE_BUCKET);
+    await supabaseRest(env, "allegations?id=eq." + encodeURIComponent(id), { method: "PATCH", prefer: "return=minimal", body: { audio_file_path: path, audio_file_name: file.name || safeName } });
+    if (oldPath) await supabaseStorageDelete(env, oldPath, ALLEGATION_EVIDENCE_BUCKET).catch(function () {});
+  } catch (e) {
+    return json({ ok: false, error: "Could not upload the audio recording.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleAllegationAudioDelete(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "allegations?id=eq." + encodeURIComponent(id) + "&select=audio_file_path");
+    const oldPath = rows && rows[0] && rows[0].audio_file_path;
+    await supabaseRest(env, "allegations?id=eq." + encodeURIComponent(id), { method: "PATCH", prefer: "return=minimal", body: { audio_file_path: null, audio_file_name: null } });
+    if (oldPath) await supabaseStorageDelete(env, oldPath, ALLEGATION_EVIDENCE_BUCKET).catch(function () {});
+  } catch (e) {
+    return json({ ok: false, error: "Could not remove the audio recording.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleAllegationAudioDownloadUrl(request, env, cors, url) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  const id = url.searchParams.get("id");
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "allegations?id=eq." + encodeURIComponent(id) + "&select=audio_file_path,audio_file_name");
+    const row = rows && rows[0];
+    if (!row || !row.audio_file_path) return json({ ok: false, error: "No audio recording on file for this allegation." }, 404, cors);
+    const signedUrl = await supabaseStorageSignedUrl(env, row.audio_file_path, 300, ALLEGATION_EVIDENCE_BUCKET, row.audio_file_name);
+    return json({ ok: true, url: signedUrl, fileName: row.audio_file_name }, 200, cors);
+  } catch (e) {
+    return json({ ok: false, error: "Could not generate a download link.", detail: String(e.message || e) }, 502, cors);
+  }
+}
+
+async function handleAllegationDocumentUpload(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let form;
+  try { form = await request.formData(); }
+  catch { return json({ ok: false, error: "Expected multipart/form-data." }, 400, cors); }
+  const id = form.get("id");
+  const file = form.get("document");
+  if (!id || !file || typeof file === "string") {
+    return json({ ok: false, error: "id and document are required." }, 400, cors);
+  }
+  const safeName = String(file.name || "document").replace(/[^A-Za-z0-9._-]/g, "_");
+  const path = "allegations/" + id + "/documents/" + Date.now() + "-" + safeName;
+  let docRow;
+  try {
+    await supabaseStorageUpload(env, path, file, file.type, ALLEGATION_EVIDENCE_BUCKET);
+    const inserted = await supabaseRest(env, "allegation_documents", {
+      method: "POST",
+      body: { allegation_id: id, file_name: file.name || safeName, storage_path: path }
+    });
+    docRow = inserted && inserted[0];
+  } catch (e) {
+    return json({ ok: false, error: "Could not upload the document.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true, document: docRow && { id: docRow.id, fileName: docRow.file_name, uploadedAt: docRow.uploaded_at } }, 200, cors);
+}
+
+async function handleAllegationDocumentDelete(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "allegation_documents?id=eq." + encodeURIComponent(id) + "&select=storage_path");
+    const docRow = rows && rows[0];
+    await supabaseRest(env, "allegation_documents?id=eq." + encodeURIComponent(id), { method: "DELETE", prefer: "return=minimal" });
+    if (docRow && docRow.storage_path) await supabaseStorageDelete(env, docRow.storage_path, ALLEGATION_EVIDENCE_BUCKET).catch(function () {});
+  } catch (e) {
+    return json({ ok: false, error: "Could not delete the document.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleAllegationDocumentDownloadUrl(request, env, cors, url) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  const id = url.searchParams.get("id");
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "allegation_documents?id=eq." + encodeURIComponent(id) + "&select=storage_path,file_name");
+    const docRow = rows && rows[0];
+    if (!docRow) return json({ ok: false, error: "Document not found." }, 404, cors);
+    const signedUrl = await supabaseStorageSignedUrl(env, docRow.storage_path, 300, ALLEGATION_EVIDENCE_BUCKET, docRow.file_name);
+    return json({ ok: true, url: signedUrl, fileName: docRow.file_name }, 200, cors);
+  } catch (e) {
+    return json({ ok: false, error: "Could not generate a download link.", detail: String(e.message || e) }, 502, cors);
+  }
 }
 
 async function handleAllegationDelete(request, env, cors) {
@@ -1723,6 +1805,258 @@ async function handleAllegationNotify(request, env, cors) {
         from: env.ALLEGATION_NOTIFY_FROM || "onboarding@resend.dev",
         to: notifyRecipients,
         subject: "New Allegation/Audit Request" + (a.org_name ? " — " + a.org_name : ""),
+        html: html
+      })
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(function () { return ""; });
+      return json({ ok: false, error: "Resend API error", detail: errText }, 502, cors);
+    }
+  } catch (e) {
+    return json({ ok: false, error: "Could not send the notification email.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+// ---------------------------------------------------------------------------
+// Tasks -- a simple assignable to-do list for the CRM Admin Portal.
+// assigned_to/created_by store an admin's email directly (see the tasks
+// migration), matching the admin_users allowlist used by the login screen.
+// Same service-role-key admin CRUD pattern as everything else in this file.
+// ---------------------------------------------------------------------------
+
+const TASK_FIELDS = "id,title,description,assigned_to,created_by,status,due_date,submission_date,org_id,direct_client_org_id,carrier_id,portal_link,email_thread_title,created_at,updated_at";
+// Attachments on a task (any number, addable after the task is saved). Rows
+// in task_files, bytes in the private task-files bucket -- admin-only like
+// tasks themselves.
+const TASK_FILES_BUCKET = "task-files";
+
+async function handleTasksList(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  let rows;
+  try {
+    rows = await supabaseRest(env, "tasks?select=" + encodeURIComponent(TASK_FIELDS + ",task_files(id,file_name,uploaded_at)") + "&order=created_at.desc");
+  } catch (e) {
+    return json({ ok: false, error: "Could not load tasks from Supabase.", detail: String(e.message || e) }, 502, cors);
+  }
+  const results = (rows || []).map(function (r) {
+    const files = (r.task_files || []).slice().sort(function (a, b) { return String(a.uploaded_at).localeCompare(String(b.uploaded_at)); });
+    return {
+      id: r.id, title: r.title, description: r.description, assignedTo: r.assigned_to,
+      createdBy: r.created_by, status: r.status, dueDate: r.due_date, submissionDate: r.submission_date,
+      orgId: r.org_id, directClientOrgId: r.direct_client_org_id, carrierId: r.carrier_id, portalLink: r.portal_link, emailThreadTitle: r.email_thread_title,
+      files: files.map(function (f) { return { id: f.id, fileName: f.file_name, uploadedAt: f.uploaded_at }; }),
+      createdAt: r.created_at, updatedAt: r.updated_at
+    };
+  });
+  return json({ ok: true, tasks: results }, 200, cors);
+}
+
+async function handleTaskCreate(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const title = (body.title || "").trim();
+  const assignedTo = (body.assignedTo || "").trim().toLowerCase();
+  if (!title) return json({ ok: false, error: "title is required." }, 400, cors);
+  if (!assignedTo) return json({ ok: false, error: "assignedTo is required." }, 400, cors);
+  let created;
+  try {
+    created = await supabaseRest(env, "tasks", {
+      method: "POST",
+      body: {
+        title: title,
+        description: (body.description || "").trim() || null,
+        assigned_to: assignedTo,
+        created_by: (body.createdBy || "").trim().toLowerCase() || null,
+        status: body.status || "Open",
+        due_date: body.dueDate || null,
+        submission_date: body.submissionDate || null,
+        org_id: body.orgId || null,
+        direct_client_org_id: body.directClientOrgId || null,
+        carrier_id: body.carrierId || null,
+        portal_link: (body.portalLink || "").trim() || null,
+        email_thread_title: (body.emailThreadTitle || "").trim() || null
+      }
+    });
+  } catch (e) {
+    return json({ ok: false, error: "Could not create the task.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true, task: created && created[0] }, 200, cors);
+}
+
+async function handleTaskUpdate(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  if (body.status && ["Open", "In Progress", "Completed"].indexOf(body.status) === -1) {
+    return json({ ok: false, error: "Invalid status." }, 400, cors);
+  }
+  const patch = { updated_at: new Date().toISOString() };
+  if (Object.prototype.hasOwnProperty.call(body, "title")) patch.title = (body.title || "").trim();
+  if (Object.prototype.hasOwnProperty.call(body, "description")) patch.description = (body.description || "").trim() || null;
+  if (Object.prototype.hasOwnProperty.call(body, "assignedTo")) patch.assigned_to = (body.assignedTo || "").trim().toLowerCase();
+  if (Object.prototype.hasOwnProperty.call(body, "status")) patch.status = body.status;
+  if (Object.prototype.hasOwnProperty.call(body, "dueDate")) patch.due_date = body.dueDate || null;
+  if (Object.prototype.hasOwnProperty.call(body, "submissionDate")) patch.submission_date = body.submissionDate || null;
+  if (Object.prototype.hasOwnProperty.call(body, "orgId")) patch.org_id = body.orgId || null;
+  if (Object.prototype.hasOwnProperty.call(body, "directClientOrgId")) patch.direct_client_org_id = body.directClientOrgId || null;
+  if (Object.prototype.hasOwnProperty.call(body, "carrierId")) patch.carrier_id = body.carrierId || null;
+  if (Object.prototype.hasOwnProperty.call(body, "portalLink")) patch.portal_link = (body.portalLink || "").trim() || null;
+  if (Object.prototype.hasOwnProperty.call(body, "emailThreadTitle")) patch.email_thread_title = (body.emailThreadTitle || "").trim() || null;
+  let updated;
+  try {
+    updated = await supabaseRest(env, "tasks?id=eq." + encodeURIComponent(id), { method: "PATCH", body: patch });
+  } catch (e) {
+    return json({ ok: false, error: "Could not update the task.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true, task: updated && updated[0] }, 200, cors);
+}
+
+async function handleTaskDelete(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const files = await supabaseRest(env, "task_files?task_id=eq." + encodeURIComponent(id) + "&select=storage_path").catch(function () { return []; });
+    await supabaseRest(env, "tasks?id=eq." + encodeURIComponent(id), { method: "DELETE", prefer: "return=minimal" });
+    await Promise.all((files || []).map(function (f) { return supabaseStorageDelete(env, f.storage_path, TASK_FILES_BUCKET).catch(function () {}); }));
+  } catch (e) {
+    return json({ ok: false, error: "Could not delete the task.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleTaskFileUpload(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let form;
+  try { form = await request.formData(); }
+  catch { return json({ ok: false, error: "Expected multipart/form-data." }, 400, cors); }
+  const taskId = form.get("taskId");
+  const file = form.get("file");
+  if (!taskId || !file || typeof file === "string") {
+    return json({ ok: false, error: "taskId and file are required." }, 400, cors);
+  }
+  const safeName = String(file.name || "upload").replace(/[^A-Za-z0-9._-]/g, "_");
+  const path = "tasks/" + taskId + "/" + Date.now() + "-" + safeName;
+  let fileRow;
+  try {
+    await supabaseStorageUpload(env, path, file, file.type, TASK_FILES_BUCKET);
+    const inserted = await supabaseRest(env, "task_files", {
+      method: "POST",
+      body: { task_id: taskId, file_name: file.name || safeName, storage_path: path }
+    });
+    fileRow = inserted && inserted[0];
+  } catch (e) {
+    return json({ ok: false, error: "Could not upload the file.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true, file: fileRow && { id: fileRow.id, fileName: fileRow.file_name, uploadedAt: fileRow.uploaded_at } }, 200, cors);
+}
+
+async function handleTaskFileDelete(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "task_files?id=eq." + encodeURIComponent(id) + "&select=storage_path");
+    const fileRow = rows && rows[0];
+    await supabaseRest(env, "task_files?id=eq." + encodeURIComponent(id), { method: "DELETE", prefer: "return=minimal" });
+    if (fileRow && fileRow.storage_path) await supabaseStorageDelete(env, fileRow.storage_path, TASK_FILES_BUCKET).catch(function () {});
+  } catch (e) {
+    return json({ ok: false, error: "Could not remove the file.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleTaskFileDownloadUrl(request, env, cors, url) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  const id = url.searchParams.get("id");
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "task_files?id=eq." + encodeURIComponent(id) + "&select=storage_path,file_name");
+    const fileRow = rows && rows[0];
+    if (!fileRow) return json({ ok: false, error: "File not found." }, 404, cors);
+    const signedUrl = await supabaseStorageSignedUrl(env, fileRow.storage_path, 300, TASK_FILES_BUCKET, fileRow.file_name);
+    return json({ ok: true, url: signedUrl, fileName: fileRow.file_name }, 200, cors);
+  } catch (e) {
+    return json({ ok: false, error: "Could not generate a download link.", detail: String(e.message || e) }, 502, cors);
+  }
+}
+
+// Powers the assignee dropdown on the New/Edit Task form -- the admin_users
+// allowlist table has no client access at all (see its migration), so this
+// is the only way the browser ever sees the list of admin emails, same
+// service-role-key pattern as every other admin-side read in this file.
+async function handleAdminUsersList(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  let rows;
+  try {
+    rows = await supabaseRest(env, "admin_users?select=email&order=email.asc");
+  } catch (e) {
+    return json({ ok: false, error: "Could not load admin users from Supabase.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true, emails: (rows || []).map(function (r) { return r.email; }) }, 200, cors);
+}
+
+// Fired by a Postgres trigger (see the tasks migration's notify_new_task()
+// function) immediately after a new row lands in `tasks`, via pg_net --
+// emails the assigned admin the task's details. Auth is a shared secret
+// header rather than partnerAdminAuthCheck's admin key, since the caller
+// here is the database itself, not a logged-in admin.
+async function handleTaskNotify(request, env, cors) {
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  const secret = request.headers.get("x-webhook-secret");
+  if (!env.TASK_WEBHOOK_SECRET || secret !== env.TASK_WEBHOOK_SECRET) {
+    return json({ ok: false, error: "Unauthorized." }, 401, cors);
+  }
+  let t;
+  try { t = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  if (!env.RESEND_API_KEY) {
+    return json({ ok: false, error: "Email notification is not configured (RESEND_API_KEY missing)." }, 500, cors);
+  }
+  if (!t.assigned_to) {
+    return json({ ok: false, error: "Task has no assigned_to address." }, 400, cors);
+  }
+  const esc = function (v) { return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+  const row = function (label, value) { return "<tr><td style=\"padding:4px 12px 4px 0;color:#5a6b7b;font-size:13px;white-space:nowrap;vertical-align:top;\">" + esc(label) + "</td><td style=\"padding:4px 0;font-size:13px;color:#12283c;\">" + (value || "&mdash;") + "</td></tr>"; };
+  const html = "<div style=\"font-family:Arial,sans-serif;max-width:560px;\">" +
+    "<h2 style=\"color:#4D4D4D;font-size:17px;margin:0 0 14px;\">New Task Assigned To You</h2>" +
+    "<table style=\"border-collapse:collapse;\">" +
+    row("Title", esc(t.title)) +
+    row("Description", t.description ? esc(t.description).replace(/\n/g, "<br>") : "") +
+    row("Due Date", esc(t.due_date)) +
+    row("Assigned By", esc(t.created_by)) +
+    row("Status", esc(t.status)) +
+    "</table>" +
+    "<p style=\"margin-top:16px;font-size:12.5px;color:#5a6b7b;\">Review and update it in the CRM Admin Portal's Tasks tab.</p>" +
+    "</div>";
+  try {
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: env.TASK_NOTIFY_FROM || "onboarding@resend.dev",
+        to: [t.assigned_to],
+        subject: "New Task Assigned" + (t.title ? ": " + t.title : ""),
         html: html
       })
     });
@@ -2195,12 +2529,12 @@ async function handleOrgSubmissionFormsList(request, env, cors, url) {
 
   let rows;
   try {
-    rows = await supabaseRest(env, "organization_submission_forms?org_id=eq." + encodeURIComponent(orgId) + "&select=id,org_id,form_type,url,plan_year,created_at&order=created_at.asc");
+    rows = await supabaseRest(env, "organization_submission_forms?org_id=eq." + encodeURIComponent(orgId) + "&select=id,org_id,form_type,url,plan_years,created_at&order=created_at.asc");
   } catch (e) {
     return json({ ok: false, error: "Could not load submission forms.", detail: String(e.message || e) }, 502, cors);
   }
   const results = (rows || []).map(function (r) {
-    return { id: r.id, orgId: r.org_id, formType: r.form_type, url: r.url, planYear: r.plan_year, createdAt: r.created_at };
+    return { id: r.id, orgId: r.org_id, formType: r.form_type, url: r.url, planYears: r.plan_years, createdAt: r.created_at };
   });
   return json({ ok: true, submissionForms: results }, 200, cors);
 }
@@ -2216,15 +2550,17 @@ async function handleOrgSubmissionFormCreate(request, env, cors) {
   const orgId = body.orgId;
   const formType = body.formType;
   const url2 = (body.url || "").trim();
-  const planYear = body.planYear;
+  const planYears = Array.isArray(body.planYears) ? body.planYears : [];
   if (!orgId) return json({ ok: false, error: "orgId is required." }, 400, cors);
-  if (formType !== "standard" && formType !== "medicare_supplement") return json({ ok: false, error: "formType must be 'standard' or 'medicare_supplement'." }, 400, cors);
+  if (formType !== "standard" && formType !== "medicare_supplement" && formType !== "final_expense") return json({ ok: false, error: "formType must be 'standard', 'medicare_supplement', or 'final_expense'." }, 400, cors);
   if (!url2) return json({ ok: false, error: "url is required." }, 400, cors);
-  if (planYear !== "PY26" && planYear !== "PY27") return json({ ok: false, error: "planYear must be 'PY26' or 'PY27'." }, 400, cors);
+  if (!planYears.length || planYears.some(function (y) { return y !== "PY26" && y !== "PY27"; })) {
+    return json({ ok: false, error: "planYears must be a non-empty array of 'PY26'/'PY27'." }, 400, cors);
+  }
 
   let created;
   try {
-    created = await supabaseRest(env, "organization_submission_forms", { method: "POST", body: { org_id: orgId, form_type: formType, url: url2, plan_year: planYear } });
+    created = await supabaseRest(env, "organization_submission_forms", { method: "POST", body: { org_id: orgId, form_type: formType, url: url2, plan_years: planYears } });
   } catch (e) {
     return json({ ok: false, error: "Could not add the submission form.", detail: String(e.message || e) }, 502, cors);
   }
@@ -2243,14 +2579,23 @@ async function handleOrgSubmissionFormUpdate(request, env, cors) {
   if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
 
   const patch = {};
+  if (Object.prototype.hasOwnProperty.call(body, "formType")) {
+    if (body.formType !== "standard" && body.formType !== "medicare_supplement" && body.formType !== "final_expense") {
+      return json({ ok: false, error: "formType must be 'standard', 'medicare_supplement', or 'final_expense'." }, 400, cors);
+    }
+    patch.form_type = body.formType;
+  }
   if (Object.prototype.hasOwnProperty.call(body, "url")) {
     const trimmedUrl = (body.url || "").trim();
     if (!trimmedUrl) return json({ ok: false, error: "url cannot be blank." }, 400, cors);
     patch.url = trimmedUrl;
   }
-  if (Object.prototype.hasOwnProperty.call(body, "planYear")) {
-    if (body.planYear !== "PY26" && body.planYear !== "PY27") return json({ ok: false, error: "planYear must be 'PY26' or 'PY27'." }, 400, cors);
-    patch.plan_year = body.planYear;
+  if (Object.prototype.hasOwnProperty.call(body, "planYears")) {
+    const planYears = Array.isArray(body.planYears) ? body.planYears : [];
+    if (!planYears.length || planYears.some(function (y) { return y !== "PY26" && y !== "PY27"; })) {
+      return json({ ok: false, error: "planYears must be a non-empty array of 'PY26'/'PY27'." }, 400, cors);
+    }
+    patch.plan_years = planYears;
   }
   if (Object.keys(patch).length === 0) return json({ ok: false, error: "Nothing to update." }, 400, cors);
 
@@ -2500,7 +2845,6 @@ const ORG_DOCS_BUCKET = "organization-documents";
 const CARRIER_GUIDELINES_BUCKET = "carrier-guidelines";
 const CARRIER_LOGO_BUCKET = "carrier-logos";
 const APEX_OP_LOGIN_LOGO_BUCKET = "apex-operational-login-logos";
-const MATERIAL_SUBMISSION_FILES_BUCKET = "material-submission-files";
 
 function pickDefined(body, fields) {
   const out = {};
@@ -2616,6 +2960,11 @@ async function handlePartnerMaterialDetail(request, env, cors, url) {
     const internalRows = await supabaseRest(env, "material_internal_status?material_id=eq." + encodeURIComponent(id) + "&select=status");
     const adminDetailRows = await supabaseRest(env, "material_admin_creative_details?material_id=eq." + encodeURIComponent(id) + "&select=end_screen_disclaimer");
     const adminFiles = await supabaseRest(env, "material_admin_files?material_id=eq." + encodeURIComponent(id) + "&select=*&order=uploaded_at");
+    const updateRows = await supabaseRest(env, "material_updates?material_id=eq." + encodeURIComponent(id) + "&select=" + encodeURIComponent("*,material_update_files(*)") + "&order=created_at.desc");
+    const updates = (updateRows || []).map(function (u) {
+      const ufiles = (u.material_update_files || []).slice().sort(function (a, b) { return String(a.uploaded_at).localeCompare(String(b.uploaded_at)); });
+      return { id: u.id, body: u.body, carrier_tags: u.carrier_tags || [], author_name: u.author_name, created_at: u.created_at, files: ufiles };
+    });
     return json({
       ok: true,
       material: material[0],
@@ -2624,7 +2973,8 @@ async function handlePartnerMaterialDetail(request, env, cors, url) {
       shareOrgIds: (shares || []).map(function (s) { return s.org_id; }),
       internalStatus: (internalRows && internalRows[0] && internalRows[0].status) || null,
       endScreenDisclaimer: (adminDetailRows && adminDetailRows[0] && adminDetailRows[0].end_screen_disclaimer) || "",
-      adminFiles: adminFiles || []
+      adminFiles: adminFiles || [],
+      updates: updates
     }, 200, cors);
   } catch (e) {
     return json({ ok: false, error: "Could not load the material.", detail: String(e.message || e) }, 502, cors);
@@ -3323,6 +3673,127 @@ async function handlePartnerAdminFileDownloadUrl(request, env, cors, url) {
 
   try {
     const rows = await supabaseRest(env, "material_admin_files?id=eq." + encodeURIComponent(id) + "&select=storage_path,file_name");
+    const fileRow = rows && rows[0];
+    if (!fileRow) return json({ ok: false, error: "File not found." }, 404, cors);
+    const signedUrl = await supabaseStorageSignedUrl(env, fileRow.storage_path, 300, ADMIN_STORAGE_BUCKET, fileRow.file_name);
+    return json({ ok: true, url: signedUrl, fileName: fileRow.file_name }, 200, cors);
+  } catch (e) {
+    return json({ ok: false, error: "Could not generate a download link.", detail: String(e.message || e) }, 502, cors);
+  }
+}
+
+// ---------- Material Updates (admin-only) ----------
+// Dated admin notes on a material, each with optional carrier tags and any
+// number of attached files. Admin-only by construction: the rows live in
+// material_updates / material_update_files (RLS enabled, no policies -- only
+// the service-role key used here can read them; the Partner Portal client
+// never queries them) and the files go in the admin-only bucket
+// (ADMIN_STORAGE_BUCKET), which has no partner Storage policy either.
+
+async function handleMaterialUpdateCreate(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const materialId = body.materialId;
+  const text = String(body.body || "").trim();
+  if (!materialId || !text) return json({ ok: false, error: "materialId and body are required." }, 400, cors);
+  const carrierTags = Array.isArray(body.carrierTags)
+    ? body.carrierTags.map(function (c) { return String(c || "").trim(); }).filter(Boolean)
+    : [];
+  let row;
+  try {
+    const inserted = await supabaseRest(env, "material_updates", {
+      method: "POST",
+      body: { material_id: materialId, body: text, carrier_tags: carrierTags, author_name: AUDIT_ACTOR_NAME }
+    });
+    row = inserted && inserted[0];
+  } catch (e) {
+    return json({ ok: false, error: "Could not post the update.", detail: String(e.message || e) }, 502, cors);
+  }
+  if (row) {
+    const matRows = await supabaseRest(env, "materials?id=eq." + encodeURIComponent(materialId) + "&select=smid").catch(function () { return null; });
+    await insertAudit(env, { kind: "item", action: "Update posted", target: matRows && matRows[0] && matRows[0].smid, detail: text.slice(0, 120), material_id: materialId });
+  }
+  return json({ ok: true, update: row }, 200, cors);
+}
+
+async function handleMaterialUpdateDelete(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const files = await supabaseRest(env, "material_update_files?update_id=eq." + encodeURIComponent(id) + "&select=storage_path");
+    await supabaseRest(env, "material_updates?id=eq." + encodeURIComponent(id), { method: "DELETE", prefer: "return=minimal" });
+    await Promise.all((files || []).map(function (f) { return supabaseStorageDelete(env, f.storage_path, ADMIN_STORAGE_BUCKET).catch(function () {}); }));
+  } catch (e) {
+    return json({ ok: false, error: "Could not delete the update.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleMaterialUpdateFileUpload(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let form;
+  try { form = await request.formData(); }
+  catch { return json({ ok: false, error: "Expected multipart/form-data." }, 400, cors); }
+  const updateId = form.get("updateId");
+  const file = form.get("file");
+  if (!updateId || !file || typeof file === "string") {
+    return json({ ok: false, error: "updateId and file are required." }, 400, cors);
+  }
+  let fileRow;
+  try {
+    const updates = await supabaseRest(env, "material_updates?id=eq." + encodeURIComponent(updateId) + "&select=material_id");
+    const update = updates && updates[0];
+    if (!update) return json({ ok: false, error: "Update not found." }, 404, cors);
+    const safeName = String(file.name || "upload").replace(/[^A-Za-z0-9._-]/g, "_");
+    const path = "materials/" + update.material_id + "/updates/" + updateId + "/" + Date.now() + "-" + safeName;
+    await supabaseStorageUpload(env, path, file, file.type, ADMIN_STORAGE_BUCKET);
+    const inserted = await supabaseRest(env, "material_update_files", {
+      method: "POST",
+      body: { update_id: updateId, file_name: file.name || safeName, storage_path: path }
+    });
+    fileRow = inserted && inserted[0];
+  } catch (e) {
+    return json({ ok: false, error: "Could not upload the file.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true, file: fileRow }, 200, cors);
+}
+
+async function handleMaterialUpdateFileDelete(request, env, cors) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST." }, 405, cors);
+  let body;
+  try { body = await request.json(); } catch { return json({ ok: false, error: "Invalid JSON body." }, 400, cors); }
+  const id = body.id;
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "material_update_files?id=eq." + encodeURIComponent(id) + "&select=storage_path");
+    const fileRow = rows && rows[0];
+    await supabaseRest(env, "material_update_files?id=eq." + encodeURIComponent(id), { method: "DELETE", prefer: "return=minimal" });
+    if (fileRow && fileRow.storage_path) await supabaseStorageDelete(env, fileRow.storage_path, ADMIN_STORAGE_BUCKET).catch(function () {});
+  } catch (e) {
+    return json({ ok: false, error: "Could not remove the file.", detail: String(e.message || e) }, 502, cors);
+  }
+  return json({ ok: true }, 200, cors);
+}
+
+async function handleMaterialUpdateFileDownloadUrl(request, env, cors, url) {
+  const authErr = partnerAdminAuthCheck(request, env, cors);
+  if (authErr) return authErr;
+  const id = url.searchParams.get("id");
+  if (!id) return json({ ok: false, error: "id is required." }, 400, cors);
+  try {
+    const rows = await supabaseRest(env, "material_update_files?id=eq." + encodeURIComponent(id) + "&select=storage_path,file_name");
     const fileRow = rows && rows[0];
     if (!fileRow) return json({ ok: false, error: "File not found." }, 404, cors);
     const signedUrl = await supabaseStorageSignedUrl(env, fileRow.storage_path, 300, ADMIN_STORAGE_BUCKET, fileRow.file_name);
