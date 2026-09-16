@@ -5,6 +5,9 @@ This is a standalone, white-labeled fork of the CRM Admin Portal + Partner Porta
 ## What's in this package
 
 ```
+root/
+  index.html        — the ONE sign-in page for admins and partners, hosted at the site root (step 7)
+  bbm-logo.png, favicon.png
 admin/
   index.html      — the CRM Admin Portal (single-page app, no build step)
   worker.js        — the backend Worker this app talks to
@@ -103,9 +106,24 @@ In **both** files, replace:
 var SUPABASE_URL = 'REPLACE_WITH_YOUR_SUPABASE_PROJECT_URL';
 var SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY';
 ```
-with your new project's URL and anon/public key (safe for client-side use — it's RLS-protected). Host both files as static assets, same as above. These two pages don't need to be on the same domain/deploy as `admin/index.html` — the original Apex system runs them as two entirely separate deployments.
+with your new project's URL and anon/public key (safe for client-side use — it's RLS-protected). Do the same in `root/index.html` (see step 7).
 
-### 7. Also replace
+### 7. Host everything under ONE domain with ONE sign-in page
+
+Apex runs its own portal this way (compliance.theapeximpact.com) and BroadBase should too: admins and partners sign in at the same address and are sent to the right side automatically. Everything is one static site (Cloudflare Pages, Netlify, S3+CloudFront), laid out like this — pick BroadBase's domain and use it everywhere the placeholder `REPLACE_WITH_BBM_PORTAL_DOMAIN` appears:
+
+| Address | Files | Who |
+|---|---|---|
+| `https://<domain>/` | contents of `root/` | **The sign-in page for everyone.** Signs in with Supabase Auth, checks whether the account is on the admin allowlist (`is_allowed_admin_email`) or has a partner `users` row, and redirects to the right app below. |
+| `https://<domain>/admin/` | contents of `admin/` (`index.html`, `daybook.html`, logo, favicon) | Admin portal (then its own authenticator-app step) |
+| `https://<domain>/partners/` | contents of `partner-client/` | Partner portal |
+| `https://<domain>/partners/allegations` | `partner-client/allegations.html` | Public allegation/audit request form, no login — put this address in `ALLEGATION_FORM_URL` in `admin/index.html` (search for `REPLACE_WITH_YOUR_PARTNER_PORTAL_DOMAIN`); on a host without clean URLs use `/partners/allegations.html` |
+
+Because all three pages share one origin, the session saved by the sign-in page is picked up automatically by whichever app it redirects to. Each app keeps its own sign-in screen as a fallback for someone who opens `/admin/` or `/partners/` directly. If you build the deploy as a zip, make sure the zip uses forward-slash folder paths (`admin/index.html`), or Cloudflare Pages flattens it and every address serves the sign-in page.
+
+In Supabase → Authentication → URL Configuration set the Site URL to `https://<domain>/` and add `https://<domain>/admin/**` and `https://<domain>/partners/**` as redirect URLs, or reset and invite links will be refused.
+
+### 8. Also replace
 
 - `compliance@REPLACE_WITH_BROADBASE_DOMAIN.com` in both partner-client files — a real support/compliance email address.
 - `broadbasemedia.com` placeholder domain text in `admin/index.html`'s header, if you want a different display string.
@@ -117,3 +135,6 @@ with your new project's URL and anon/public key (safe for client-side use — it
 - [ ] `supabase/migrations/20260903090000_notify_webhooks_point_at_bbm_worker.sql`: run it (already carries the real Worker URL + secrets; supersedes the placeholders in `20260827020000` and `20260901030000`)
 - [ ] `partner-client/index.html`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, compliance email
 - [ ] `partner-client/allegations.html`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, compliance email
+- [ ] `root/index.html`: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `REPLACE_WITH_BBM_PORTAL_DOMAIN`
+- [ ] `admin/index.html`: `ALLEGATION_FORM_URL` → `https://<domain>/partners/allegations`
+- [ ] Supabase → Authentication → URL Configuration: Site URL + the two redirect URLs (step 7)
