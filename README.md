@@ -10,6 +10,7 @@ root/
   bbm-logo.png, favicon.png
 admin/
   index.html      — the CRM Admin Portal (single-page app, no build step)
+  daybook.html      — the Day Book: the planner + team task list that IS the admin portal's Tasks tab (host next to index.html)
   worker.js        — the backend Worker this app talks to
   bbm-logo.png      — BroadBase Media's logo (already embedded in both apps as base64)
 partner-client/
